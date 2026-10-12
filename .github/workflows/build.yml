@@ -7,6 +7,7 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -15,10 +16,15 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Install NDK
-        run: sdkmanager "ndk;28.2.13676358" "build-tools;36.0.0"
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n 1)"
+          fi
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-37" "platform-tools" "ndk;28.2.13676358"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
       - name: Cache Giac AAR
         id: giac-cache
@@ -27,12 +33,10 @@ jobs:
           path: app/libs/giac-android.aar
           key: giac-aar-${{ hashFiles('scripts/build-giac.sh') }}
 
-      # Best effort: if Giac fails to build, the app still compiles and reports "math engine not installed".
+      # Best effort: if Giac fails, the APK still builds and the app reports "math engine not installed".
       - name: Build Giac AAR
         if: steps.giac-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
         run: ./scripts/build-giac.sh
 
       - uses: gradle/actions/setup-gradle@v4
