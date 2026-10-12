@@ -1,0 +1,7 @@
+HSPLcom/digitalminds/angelina/**;->**(**)**
+Lcom/digitalminds/angelina/**;
+HSPLandroidx/compose/foundation/pager/**;->**(**)**
+HSPLandroidx/compose/foundation/lazy/**;->**(**)**
+HSPLandroidx/compose/foundation/gestures/**;->**(**)**
+HSPLandroidx/compose/ui/text/**;->**(**)**
+HSPLandroidx/compose/ui/graphics/**;->**(**)**
