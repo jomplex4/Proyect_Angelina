@@ -70,11 +70,11 @@ object Keys {
 
     val pages: List<List<Key>> = listOf(
         listOf(
-            f("sin", "sin", more = listOf(fv("asin", "asin"), fv("sinh", "sinh"), fv("asinh", "asinh"))),
-            f("cos", "cos", more = listOf(fv("acos", "acos"), fv("cosh", "cosh"), fv("acosh", "acosh"))),
-            f("tan", "tan", more = listOf(fv("atan", "atan"), fv("tanh", "tanh"), fv("atanh", "atanh"))),
-            f("ln", "ln", more = listOf(sv("eˣ", S.EXPE), fv("logₐ", "logb", "", ""))),
-            f("log", "log10", more = listOf(sv("10ˣ", S.EXP10), fv("logₐ", "logb", "", ""))),
+            f("sin", "sin", more = listOf(fv("sin⁻¹", "asin"), fv("sinh", "sinh"), fv("sinh⁻¹", "asinh"))),
+            f("cos", "cos", more = listOf(fv("cos⁻¹", "acos"), fv("cosh", "cosh"), fv("cosh⁻¹", "acosh"))),
+            f("tan", "tan", more = listOf(fv("tan⁻¹", "atan"), fv("tanh", "tanh"), fv("tanh⁻¹", "atanh"))),
+            f("ln", "ln", more = listOf(sv("eˣ", S.EXPE), fv("log b", "logb", "", ""))),
+            f("log", "log10", more = listOf(sv("10ˣ", S.EXP10), fv("log b", "logb", "", ""))),
             sp("√", S.SQRT, more = listOf(sv("ⁿ√", S.NROOT), sv("∛", S.CBRT))),
             sp("x²", S.SQUARE, more = listOf(sv("x³", S.CUBE), sv("x⁻¹", S.INV))),
             sp("^", S.POW),
@@ -82,10 +82,16 @@ object Keys {
             t("e", more = listOf(sv("eˣ", S.EXPE)))
         ),
         listOf(
-            f("asin", "asin"), f("acos", "acos"), f("atan", "atan"),
-            f("sinh", "sinh", more = listOf(fv("asinh", "asinh"))), f("cosh", "cosh", more = listOf(fv("acosh", "acosh"))),
-            f("tanh", "tanh", more = listOf(fv("atanh", "atanh"))), f("abs", "abs", more = listOf(fv("sign", "sign"), fv("conj", "conj"))),
-            sp("ⁿ√", S.NROOT), f("logₐ", "logb", "", ""), sp("eˣ", S.EXPE)
+            f("sin⁻¹", "asin", more = listOf(fv("sinh⁻¹", "asinh"))),
+            f("cos⁻¹", "acos", more = listOf(fv("cosh⁻¹", "acosh"))),
+            f("tan⁻¹", "atan", more = listOf(fv("tanh⁻¹", "atanh"))),
+            f("cot", "cot", more = listOf(fv("cot⁻¹", "acot"))),
+            f("sec", "sec", more = listOf(fv("sec⁻¹", "asec"))),
+            f("csc", "csc", more = listOf(fv("csc⁻¹", "acsc"))),
+            f("sinh", "sinh", more = listOf(fv("sinh⁻¹", "asinh"))),
+            f("cosh", "cosh", more = listOf(fv("cosh⁻¹", "acosh"))),
+            f("tanh", "tanh", more = listOf(fv("tanh⁻¹", "atanh"))),
+            f("abs", "abs", more = listOf(fv("sign", "sign"), fv("conj", "conj")))
         ),
         listOf(
             t("n!", "!"), f("nCr", "comb", "", ""), f("nPr", "perm", "", ""),
@@ -97,7 +103,7 @@ object Keys {
         ),
         listOf(
             f("d/dx", "diff", "", "x", more = listOf(fv("dⁿ/dxⁿ", "diff", "", "x", "2"), fv("∂/∂y", "diff", "", "y"))),
-            f("∫", "int", "", "x"), f("∫ₐᵇ", "int", "", "x", "", ""),
+            f("∫", "int", "", "x"), f("∫[a,b]", "int", "", "x", "", ""),
             f("lim", "limit", "", "x", "", more = listOf(fv("lim⁺", "limit", "", "x", "", "1"), fv("lim⁻", "limit", "", "x", "", "-1"))),
             f("Σ", "sum", "", "k", "1", ""), f("Π", "product", "", "k", "1", ""),
             f("taylor", "taylor", "", "x=0", "5", more = listOf(fv("series", "series", "", "x=0", "5"))),

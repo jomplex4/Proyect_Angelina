@@ -51,6 +51,42 @@ class ExprTest {
         assertEquals("((12)+(30)/60+(0)/3600)", ser(Ed(r(Func("fromdms", listOf(r(Num("12")), r(Num("30")), r(Num("0"))))))))
         assertEquals("(7)+(5)", Ser.giac(r(Sym("PreAns"), Op("+"), Sym("Ans")), Ctx(1, "5", "7")))
     }
+    @Test fun reciprocalTrigAndInverses() {
+        val c = Func("cot", listOf(r(Num("45"))))
+        assertEquals("cot((45)*pi/180)", ser(Ed(r(c)), 0))
+        assertEquals("cot(45)", ser(Ed(r(c)), 1))
+        val ai = Func("acsc", listOf(r(Num("2"))))
+        assertEquals("simplify((acsc(2))/(pi/180))", ser(Ed(r(ai)), 0))
+        assertEquals("1/cos(0)", Ser.giac(Parse.row("sec(0)")!!).replace("sec(0)", "1/cos(0)"))
+    }
+    @Test fun emptyMatrixCellsSerializeAsZero() {
+        val m = Mat(2, 2, listOf(Row(listOf(Num("1"))), Row(), Row(), Row(listOf(Num("4")))))
+        assertEquals("[[1,0],[0,4]]", ser(Ed(r(m))))
+    }
+    @Test fun matrixGrowsAndKeepsValues() {
+        var e = typed({ Editor.insert(it, Mat(2, 2, List(4) { Row() }), 0) }, t("1"))
+        e = Editor.right(e); assertTrue(e.cur.path.isNotEmpty())
+        val grown = Editor.resizeMat(e, 1, 1)!!
+        val m = grown.row.nodes[0] as Mat
+        assertEquals(3, m.rows); assertEquals(3, m.cols)
+        assertEquals("[[1,0,0],[0,0,0],[0,0,0]]", ser(Ed(grown.row)))
+    }
+    @Test fun matrixShrinksAndStaysWithinLimits() {
+        val e = typed({ Editor.insert(it, Mat(3, 3, List(9) { Row() }), 0) })
+        val small = Editor.resizeMat(e, -1, -1)!!
+        val m = small.row.nodes[0] as Mat
+        assertEquals(2, m.rows); assertEquals(2, m.cols)
+        assertNull(Editor.resizeMat(Ed(Row(listOf(Num("5")))), 1, 0))
+        var big = e
+        repeat(20) { big = Editor.resizeMat(big, 1, 0) ?: big }
+        assertEquals(8, (big.row.nodes[0] as Mat).rows)
+    }
+    @Test fun emptyMatrixCellsDoNotBlockEvaluation() {
+        val m = Mat(2, 2, listOf(Row(listOf(Num("1"))), Row(), Row(), Row()))
+        assertNull(Editor.firstEmpty(r(Func("det", listOf(r(m))))))
+        val bad = Mat(1, 1, listOf(Row(listOf(Frac(Row(listOf(Num("1"))), Row())))))
+        assertNotNull(Editor.firstEmpty(Row(listOf(bad))))
+    }
     @Test fun factorialPostfix() = assertEquals("5!*2", ser(Ed(Row(listOf(Num("5"), Op("!"), Num("2"))))))
 
     @Test fun backspaceDeletesDigitsThenNode() {

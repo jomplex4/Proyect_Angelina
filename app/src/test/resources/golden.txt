@@ -154,3 +154,9 @@ NUM	(x+1)/(x^2+1)|2	0.6
 NUM	cosh(x)-sinh(x)|0.9	0.406569659741
 NUM	x^(1/3)|27	3.0
 NUM	2^x+x^2|3.5	23.563708499
+matrix	det([[1,2,3],[4,5,6],[7,8,10]])	-3
+trig	cot(pi/4)	1
+trig	sec(60*pi/180)	2
+trig	csc(30*pi/180)	2
+trig	simplify(acot(1)/(pi/180))	45
+trig	simplify(asin(1/2)/(pi/180))	30

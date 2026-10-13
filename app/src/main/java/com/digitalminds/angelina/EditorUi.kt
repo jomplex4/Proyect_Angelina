@@ -1,16 +1,13 @@
 package com.digitalminds.angelina
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clipToBounds
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -63,12 +60,18 @@ private fun List<It>.shift(dx: Float, dy: Float): List<It> = map {
 
 private fun List<Caret>.shiftC(dx: Float, dy: Float): List<Caret> = map { Caret(it.path, it.idx, it.x + dx, it.top + dy, it.bot + dy) }
 
-class Lo(private val tm: TextMeasurer, private val d: Density, private val col: Color = Brand.text) {
-    private val cache = HashMap<String, TextLayoutResult>()
+/** Shared across all editors and rows, so a layout measured once is never measured again. */
+private object TextCache {
+    private val map = object : LinkedHashMap<String, TextLayoutResult>(512, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, TextLayoutResult>?) = size > 1024
+    }
+    fun get(key: String, make: () -> TextLayoutResult): TextLayoutResult = map[key] ?: make().also { map[key] = it }
+}
 
+class Lo(private val tm: TextMeasurer, private val d: Density, private val col: Color = Brand.text) {
     private fun measure(s: String, fs: Float, bold: Boolean): TextLayoutResult {
-        val key = "$s|$fs|$bold"
-        return cache.getOrPut(key) {
+        val key = "$s|$fs|$bold|${col.value}|${d.density}|${d.fontScale}"
+        return TextCache.get(key) {
             tm.measure(s, TextStyle(fontFamily = Brand.sans, fontSize = with(d) { fs.toSp() }, color = col, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal))
         }
     }
@@ -340,11 +343,13 @@ fun EditorView(
     }
     val scrollS = rememberUpdatedState(scroll)
     val vhS = rememberUpdatedState(vh)
-    val blink = rememberInfiniteTransition(label = "caret").animateFloat(
-        0f, 1f, infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Restart), label = "a"
-    )
+    val caretOn by produceState(initialValue = true, key1 = active) {
+        value = true
+        while (active) { delay(530); value = !value }
+    }
     Canvas(
         modifier
+            .clipToBounds()
             .onSizeChanged { vw = it.width.toFloat(); vh = it.height.toFloat() }
             .pointerInput(Unit) {
                 detectTapGestures { o ->
@@ -371,7 +376,7 @@ fun EditorView(
     ) {
         val oy = (size.height - (lay.asc + lay.desc)) / 2 + lay.asc
         drawLay(lay, -scroll, oy, px / 14f)
-        if (active && caret != null && blink.value < 0.6f) {
+        if (active && caret != null && caretOn) {
             drawLine(Brand.accentHi, Offset(caret.x - scroll, oy + caret.top), Offset(caret.x - scroll, oy + caret.bot), strokeWidth = px / 9f)
         }
     }

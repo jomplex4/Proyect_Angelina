@@ -217,11 +217,12 @@ object Editor {
         return insert(ed, Frac(Row(), Row()), 0)
     }
 
+    /** First box the user still has to fill. Empty matrix cells are allowed: they count as 0. */
     fun firstEmpty(row: Row, path: List<Step> = emptyList()): Cur? {
         for ((i, n) in row.nodes.withIndex()) {
             val sl = slots(n)
             for ((j, s) in sl.withIndex()) {
-                if (s.nodes.isEmpty()) return Cur(path + Step(i, j), 0)
+                if (s.nodes.isEmpty()) { if (n is Mat) continue; return Cur(path + Step(i, j), 0) }
                 firstEmpty(s, path + Step(i, j))?.let { return it }
             }
         }
@@ -229,6 +230,36 @@ object Editor {
     }
 
     fun isBlank(row: Row) = row.nodes.isEmpty()
+
+    /** The innermost matrix that holds the cursor: (path to the row holding it, its index in that row, the matrix). */
+    fun matAt(ed: Ed): Triple<List<Step>, Int, Mat>? {
+        val path = ed.cur.path
+        for (d in path.indices.reversed()) {
+            val parent = path.take(d)
+            val st = path[d]
+            val n = ed.row.sub(parent).nodes.getOrNull(st.node)
+            if (n is Mat) return Triple(parent, st.node, n)
+        }
+        return null
+    }
+
+    /** Adds or removes rows (dr) and columns (dc) of the matrix at the cursor. Existing cells are kept. */
+    fun resizeMat(ed: Ed, dr: Int, dc: Int): Ed? {
+        val (parent, idx, m) = matAt(ed) ?: return null
+        val nr = (m.rows + dr).coerceIn(1, 8)
+        val nc = (m.cols + dc).coerceIn(1, 8)
+        if (nr == m.rows && nc == m.cols) return ed
+        val cells = ArrayList<Row>(nr * nc)
+        for (i in 0 until nr) for (j in 0 until nc) {
+            cells.add(if (i < m.rows && j < m.cols) m.cells[i * m.cols + j] else Row())
+        }
+        val row = ed.row.upd(parent) { r -> Row(r.nodes.toMutableList().also { it[idx] = Mat(nr, nc, cells) }) }
+        val oldSlot = ed.cur.path.getOrNull(parent.size)?.slot ?: 0
+        val i = oldSlot / m.cols
+        val j = oldSlot % m.cols
+        val newSlot = if (i < nr && j < nc) i * nc + j else 0
+        return Ed(row, Cur(parent + Step(idx, newSlot), 0))
+    }
 }
 
 object Names {
@@ -238,9 +269,13 @@ object Names {
         "ztrans" to "Ztrans", "fourier" to "Fourier", "eigenvals" to "eig", "eigenvects" to "eigvec",
         "polar_coordinates" to "polar", "shl" to "shl", "shr" to "shr", "not" to "not", "dms" to "▶DMS", "fromdms" to "DMS▶"
     )
-    val trig = setOf("sin", "cos", "tan")
-    val itrig = setOf("asin", "acos", "atan")
-    fun show(n: String) = display[n] ?: n
+    val trig = setOf("sin", "cos", "tan", "cot", "sec", "csc")
+    val itrig = setOf("asin", "acos", "atan", "acot", "asec", "acsc")
+    private val inverse = mapOf(
+        "asin" to "sin⁻¹", "acos" to "cos⁻¹", "atan" to "tan⁻¹", "acot" to "cot⁻¹", "asec" to "sec⁻¹", "acsc" to "csc⁻¹",
+        "asinh" to "sinh⁻¹", "acosh" to "cosh⁻¹", "atanh" to "tanh⁻¹"
+    )
+    fun show(n: String) = inverse[n] ?: display[n] ?: n
 }
 
 class Ctx(val angle: Int = 1, val ans: String? = null, val pre: String? = null)
@@ -288,7 +323,7 @@ object Ser {
         is Paren -> Tok("(" + giac(n.r, c) + ")", 0)
         is Lst -> Tok("[" + n.items.joinToString(",") { giac(it, c) } + "]", 0)
         is Mat -> Tok("[" + (0 until n.rows).joinToString(",") { r ->
-            "[" + (0 until n.cols).joinToString(",") { k -> giac(n.cells[r * n.cols + k], c) } + "]"
+            "[" + (0 until n.cols).joinToString(",") { k -> giac(n.cells[r * n.cols + k], c).ifEmpty { "0" } } + "]"
         } + "]", 0)
         is Mixed -> Tok("((" + giac(n.w, c) + ")+(" + giac(n.n, c) + ")/(" + giac(n.d, c) + "))", 0)
         is Func -> Tok(func(n, c), 0)

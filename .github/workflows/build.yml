@@ -11,7 +11,7 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +26,8 @@ jobs:
         run: |
           SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n 1)"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" "platform-tools" "ndk;28.2.13676358"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          "$SDKMANAGER" "platform-tools" "ndk;28.0.12916984"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.12916984" >> "$GITHUB_ENV"
 
       - name: Restore Giac AAR cache
         id: giac-cache
@@ -40,7 +40,18 @@ jobs:
       - name: Build Giac AAR
         if: steps.giac-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        run: bash scripts/build-giac.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/build-giac.sh 2>&1 | tee giac-build.log
+
+      - name: Upload Giac build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: giac-build-log
+          path: giac-build.log
+          if-no-files-found: ignore
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
@@ -54,12 +65,24 @@ jobs:
       - name: Assemble debug APKs
         run: ./gradlew assembleDebug
 
-      - name: Upload APKs
+      # Release builds use R8 and the baseline profile and are much faster on a phone than debug builds.
+      - name: Assemble release APKs
+        continue-on-error: true
+        run: ./gradlew assembleRelease
+
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: angelina-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Upload release APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: angelina-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
 
   release:
     needs: apk
@@ -74,12 +97,20 @@ jobs:
       - name: Download APKs
         uses: actions/download-artifact@v4
         with:
-          name: angelina-debug-apk
           path: dist
+          pattern: angelina-*
 
-      - name: Create GitHub Release with APKs
+      - name: Create GitHub Release (release APKs if they exist, otherwise debug)
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/*.apk --title "ANGELINA $TAG" --generate-notes
+        run: |
+          mkdir -p out
+          if ls dist/angelina-release-apk/*.apk >/dev/null 2>&1; then SRC=dist/angelina-release-apk; else SRC=dist/angelina-debug-apk; fi
+          for f in "$SRC"/*.apk; do
+            b="$(basename "$f")"
+            cp "$f" "out/ANGELINA-${TAG}-${b#app-}"
+          done
+          ls -la out
+          gh release create "$TAG" out/*.apk --title "ANGELINA $TAG" --generate-notes

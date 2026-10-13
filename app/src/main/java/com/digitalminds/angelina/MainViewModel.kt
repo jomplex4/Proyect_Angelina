@@ -138,6 +138,12 @@ class MainViewModel : ViewModel() {
 
     fun tableEx(id: String): Ex? = NumEval.parse(field(id).value.row)
 
+    /** Adds or removes rows/columns of the matrix the cursor is in (Home only). */
+    fun matResize(dr: Int, dc: Int) {
+        val f = field("home")
+        Editor.resizeMat(f.value, dr, dc)?.let { f.value = it }
+    }
+
     fun setHomeRow(row: Row) { field("home").value = Ed(row, Cur(emptyList(), row.nodes.size)) }
 
     fun onKey(k: KA) {

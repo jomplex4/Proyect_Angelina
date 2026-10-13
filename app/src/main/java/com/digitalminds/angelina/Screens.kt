@@ -499,7 +499,7 @@ fun SettingsScreen(vm: MainViewModel) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Image(painterResource(R.drawable.ic_mark), null, Modifier.size(width = 96.dp, height = 57.dp))
             BasicText("ANGELINA 1.0", style = label(15, Brand.text, true))
-            Image(painterResource(R.drawable.splash_brand), null, Modifier.size(width = 180.dp, height = 42.dp))
+            Image(painterResource(R.drawable.splash_brand), null, Modifier.size(width = 200.dp, height = 56.dp))
         }
         Spacer(Modifier.height(16.dp))
     }

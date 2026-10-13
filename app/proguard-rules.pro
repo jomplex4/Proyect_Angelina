@@ -3,3 +3,5 @@
 -keepclasseswithmembernames class * { native <methods>; }
 -keep class com.digitalminds.angelina.CasService { *; }
 -dontwarn javax.annotation.**
+-dontwarn javagiac.**
+-dontwarn org.jetbrains.annotations.**

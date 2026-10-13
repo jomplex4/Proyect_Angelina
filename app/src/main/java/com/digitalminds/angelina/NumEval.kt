@@ -102,6 +102,12 @@ object NumEval {
         "sin" -> { x -> sin(x * k) }
         "cos" -> { x -> cos(x * k) }
         "tan" -> { x -> tan(x * k) }
+        "cot" -> { x -> 1.0 / tan(x * k) }
+        "sec" -> { x -> 1.0 / cos(x * k) }
+        "csc" -> { x -> 1.0 / sin(x * k) }
+        "acot" -> { x -> atan(1.0 / x) / k }
+        "asec" -> { x -> acos(1.0 / x) / k }
+        "acsc" -> { x -> asin(1.0 / x) / k }
         "asin" -> { x -> asin(x) / k }
         "acos" -> { x -> acos(x) / k }
         "atan" -> { x -> atan(x) / k }

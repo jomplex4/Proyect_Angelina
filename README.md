@@ -35,7 +35,7 @@ The AAR you build therefore only has to provide `libjavagiac.so` and `libc++_sha
 
 ```
 export ANDROID_HOME=$HOME/Android/Sdk
-export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358
+export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.12916984
 ./scripts/build-giac.sh
 ```
 The script clones Giac, builds only armeabi-v7a and arm64-v8a, copies the result to `app/libs/giac-android.aar` and checks that the 5 JNI symbols
@@ -70,7 +70,7 @@ variables and functions are replayed. Cost: a second process uses extra RAM (see
 | lifecycle-viewmodel-compose | 2.11.0 | Verified in the stable-channel list |
 | profileinstaller | 1.4.1 | Not verified as the latest. Needed so the baseline profile installs on sideloaded APKs |
 | JUnit | 4.13.2 | Not verified as the latest |
-| NDK (CI) | 28.2.13676358 | Verified as AGP 9.4.0 default |
+| NDK (CI) | 28.0.12916984 | The version GeoGebra's own CI uses to build Giac |
 
 If Gradle sync complains, change the numbers in `gradle/libs.versions.toml` only. A `buildscript` classpath entry for the Kotlin Gradle plugin is in
 the root `build.gradle.kts` because AGP 9 bundles its own Kotlin and the Compose plugin must match.
@@ -119,3 +119,20 @@ Not delivered, with reason:
 * Matrix mode has no separate "eigen decomposition" display beyond `eigenvals` and `eigenvects`; SVD is available through the search palette only.
 * Fourier and Z-transform are available through the Laplace key long-press, not a dedicated key.
 * A device-measured APK size and RAM figure: needs a real build.
+
+## 8. Troubleshooting
+
+* **"The math engine is not installed"**: the Giac AAR is missing. In GitHub Actions open the run and download the artifact **giac-build-log**;
+  it lists exactly why `scripts/build-giac.sh` stopped. Locally, run `./scripts/build-giac.sh` (Linux, macOS or WSL) and rebuild.
+  The script deletes `kdisplay.cc` and `k_csdk.c` before compiling, exactly as GeoGebra's own CI does (see the Giac repo's `Jenkinsfile`),
+  because the Giac JNI target compiles every file in `src/giac/cpp` and those two are calculator-only.
+  This was found by reading that Jenkinsfile; it has not been confirmed by a successful build yet.
+* **Slow typing**: install the **release** APK, not the debug one. Debug builds of Compose apps are several times slower
+  (no R8, no baseline profile, debuggable). The workflow now builds both; the GitHub Release attaches the release APKs when they exist.
+  The editor also caches text layouts across keystrokes, clips to its box, and blinks the cursor only in the active field.
+  Measure: `adb shell dumpsys gfxinfo com.digitalminds.angelina framestats` while typing.
+* **First install after this version**: APKs are now signed with a fixed personal key (`app/angelina.keystore`, password `angelina123`, kept in the repo
+  on purpose so that every version has the same signature). Android refuses to update an app signed with a different key, so **uninstall the old
+  ANGELINA once**; after that, updates install over the previous version.
+* **Icon or splash still look old**: uninstall first (Android caches launcher icons per install).
+* **Matrix**: tap **[M]** on page 6, type values, and use **+ fila / - fila / + columna / - columna** above the entry line. Empty cells count as 0.

@@ -6,6 +6,13 @@ object Guide {
     private fun g(t: String, goal: String, ex: String, tags: String, vararg steps: String) = GuideEntry(t, goal, steps.toList(), ex, tags)
 
     val entries: List<GuideEntry> = listOf(
+        g("Matrices: add rows and columns", "Make a matrix bigger or smaller while you type it.", "det([[1,2,3],[4,5,6],[7,8,10]])", "matrix size rows columns fila columna",
+            "Tap [M] on page 6 to insert a 2 x 2 matrix. The line 'Matriz activa' and its buttons appear above the entry line.", "Tap a cell, type a value, then press + fila or + columna.",
+            "Press - fila or - columna to remove a row or column. Existing values are kept.", "Press = to compute det, inv or eig. The maximum size is 8 x 8."),
+        g("Cotangent, secant, cosecant", "Use cot, sec and csc, and their inverses.", "cot(pi/4)", "cot sec csc reciprocal trig cotangent secant cosecant",
+            "Open page 2 and tap cot, sec or csc.", "For the inverses, long-press the key and choose cot inverse, sec inverse or csc inverse.", "In Degrees mode the result follows the angle unit set in Settings."),
+        g("Inverse trig: sin inverse", "Angle whose sine is a given value.", "simplify((asin(1/2))/(pi/180))", "arcsin inverse sin sin-1 angle",
+            "Open page 2 and tap sin inverse (sin-1).", "Type the value, for example 1/2, then press =.", "In Degrees mode the answer is in degrees."),
         g("Cube root", "Compute the real cube root of a number.", "simplify(surd(27,3))", "root cbrt radical",
             "Open page 1 and long-press the square root key.", "Choose the nth root template and type 3 as the index.", "Type the radicand and press =."),
         g("Nth root", "Compute a root of any index, such as the 5th root of 32.", "simplify(surd(32,5))", "root radical index",

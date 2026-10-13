@@ -54,6 +54,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.digitalminds.angelina.Editor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -245,6 +246,15 @@ private fun HomeScreen(vm: MainViewModel) {
                     Image(painterResource(R.drawable.ic_mark), null, Modifier.size(width = 96.dp, height = 57.dp))
                     Spacer(Modifier.height(10.dp))
                     Caption("Type an expression and press =")
+                    Spacer(Modifier.height(14.dp))
+                    Column(Modifier.padding(horizontal = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (tip in listOf(
+                            "Matrix: page 6, tap [M], then use + fila / + columna",
+                            "Long-press any key for variants and inverses",
+                            "Search any function with the magnifier",
+                            "Swipe the keys left or right for more pages"
+                        )) BasicText(tip, style = label(13, Brand.textDim, align = TextAlign.Center), modifier = Modifier.fillMaxWidth())
+                    }
                 }
             } else {
                 val list = remember(hist) { hist.asReversed() }
@@ -258,8 +268,22 @@ private fun HomeScreen(vm: MainViewModel) {
                 BasicText(err ?: "", Modifier.weight(1f).padding(start = 4.dp), style = label(13, Brand.error), maxLines = 2)
                 Pill("Verify", bg = Brand.keyNum, fg = Brand.violet) { vm.verify() }
             }
+            MatBar(vm)
             Fld(vm, "home", Modifier.fillMaxWidth(), fs = 24f, h = 70.dp)
         }
+    }
+}
+
+@Composable
+private fun MatBar(vm: MainViewModel) {
+    val ed by vm.field("home").collectAsState()
+    if (Editor.matAt(ed) == null) return
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Pill("+ fila", bg = Brand.keyOp) { vm.matResize(1, 0) }
+        Pill("- fila", bg = Brand.keyOp) { vm.matResize(-1, 0) }
+        Pill("+ columna", bg = Brand.keyOp) { vm.matResize(0, 1) }
+        Pill("- columna", bg = Brand.keyOp) { vm.matResize(0, -1) }
+        BasicText("Matriz activa", style = label(12, Brand.textDim))
     }
 }
 

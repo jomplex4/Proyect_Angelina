@@ -9,7 +9,7 @@
 .cxx/
 *.apk
 *.aab
-*.keystore
+!app/angelina.keystore
 app/build/
 app/libs/*.aar
 giac-src/

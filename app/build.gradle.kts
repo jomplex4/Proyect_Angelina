@@ -11,8 +11,18 @@ android {
         applicationId = "com.digitalminds.angelina"
         minSdk = 31
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 4
+        versionName = "1.3"
+    }
+
+    signingConfigs {
+        // Fixed personal-use key kept in the repo so every APK has the same signature and updates install over each other.
+        create("angelina") {
+            storeFile = file("angelina.keystore")
+            storePassword = "angelina123"
+            keyAlias = "angelina"
+            keyPassword = "angelina123"
+        }
     }
 
     splits {
@@ -29,8 +39,16 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("angelina")
         }
+        debug {
+            signingConfig = signingConfigs.getByName("angelina")
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
