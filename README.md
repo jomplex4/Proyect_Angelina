@@ -21,8 +21,7 @@ Package: `com.digitalminds.angelina`. Brand: DIGITALMINDS family.
    git push -u origin main
    ```
 3. Open the repository, tab **Actions**, workflow **build**. When it turns green open the run and download the artifact
-   **angelina-debug-apk** (one APK per ABI: `app-arm64-v8a-debug.apk`, `app-armeabi-v7a-debug.apk`). Install the one that matches your phone
-   (almost every phone from the last 8 years is arm64-v8a).
+   **angelina-debug-apk** (one universal APK with both the 32-bit and 64-bit engines, so it installs on any phone).
 4. The workflow builds Giac first (cached afterwards). That step is best effort: if it fails the APK still builds, but the calculator will say
    "The math engine is not installed" until `app/libs/giac-android.aar` exists.
 
@@ -122,17 +121,15 @@ Not delivered, with reason:
 
 ## 8. Troubleshooting
 
-* **"The math engine is not installed"**: the Giac AAR is missing. In GitHub Actions open the run and download the artifact **giac-build-log**;
-  it lists exactly why `scripts/build-giac.sh` stopped. Locally, run `./scripts/build-giac.sh` (Linux, macOS or WSL) and rebuild.
-  The script deletes `kdisplay.cc` and `k_csdk.c` before compiling, exactly as GeoGebra's own CI does (see the Giac repo's `Jenkinsfile`),
-  because the Giac JNI target compiles every file in `src/giac/cpp` and those two are calculator-only.
-  This was found by reading that Jenkinsfile; it has not been confirmed by a successful build yet.
-* **Slow typing**: install the **release** APK, not the debug one. Debug builds of Compose apps are several times slower
-  (no R8, no baseline profile, debuggable). The workflow now builds both; the GitHub Release attaches the release APKs when they exist.
-  The editor also caches text layouts across keystrokes, clips to its box, and blinks the cursor only in the active field.
-  Measure: `adb shell dumpsys gfxinfo com.digitalminds.angelina framestats` while typing.
-* **First install after this version**: APKs are now signed with a fixed personal key (`app/angelina.keystore`, password `angelina123`, kept in the repo
-  on purpose so that every version has the same signature). Android refuses to update an app signed with a different key, so **uninstall the old
-  ANGELINA once**; after that, updates install over the previous version.
-* **Icon or splash still look old**: uninstall first (Android caches launcher icons per install).
+* **One APK for every phone.** The APK contains both `armeabi-v7a` (32-bit) and `arm64-v8a` engines; Android installs the right one.
+  Phones such as the Galaxy A03 Core run 32-bit user space even on a 64-bit chip, and reject arm64-only APKs with "not compatible with this device".
+* **Giac build.** The Giac AAR was confirmed to build on GitHub Actions ("BUILD SUCCESSFUL" in the `giac-build-log` artifact). It contained
+  `libjavagiac.so` for both ABIs. `scripts/build-giac.sh` now also strips the libraries and removes the unused x86 ones, then checks that the 5 JNI
+  functions the app calls are exported (`n/5 JNI symbols` in the log); if that check fails it keeps the original AAR.
+  The script deletes `kdisplay.cc` and `k_csdk.c` first, as GeoGebra's own CI does.
+* **"The math engine is not installed"**: the AAR is missing from the APK. Open the `giac-build-log` artifact of the run and read it.
+* **Slow typing**: install the **release** APK, not the debug one (the GitHub Release attaches the release APK when it exists).
+  The editor caches text layouts, clips to its box, and blinks the cursor only in the active field.
+* **First install after v1.3**: the APK is signed with a fixed personal key (`app/angelina.keystore`, password `angelina123`) kept in the repo on purpose.
+  Android refuses updates signed with a different key, so uninstall older ANGELINA builds once.
 * **Matrix**: tap **[M]** on page 6, type values, and use **+ fila / - fila / + columna / - columna** above the entry line. Empty cells count as 0.

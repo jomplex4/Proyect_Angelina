@@ -107,10 +107,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           mkdir -p out
-          if ls dist/angelina-release-apk/*.apk >/dev/null 2>&1; then SRC=dist/angelina-release-apk; else SRC=dist/angelina-debug-apk; fi
-          for f in "$SRC"/*.apk; do
-            b="$(basename "$f")"
-            cp "$f" "out/ANGELINA-${TAG}-${b#app-}"
-          done
+          if ls dist/angelina-release-apk/*.apk >/dev/null 2>&1; then
+            cp dist/angelina-release-apk/*.apk "out/ANGELINA-${TAG}.apk"
+          else
+            cp dist/angelina-debug-apk/*.apk "out/ANGELINA-${TAG}-debug.apk"
+          fi
           ls -la out
           gh release create "$TAG" out/*.apk --title "ANGELINA $TAG" --generate-notes

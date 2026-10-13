@@ -51,6 +51,28 @@ AAR="$(find giac-android/build/outputs/aar -name '*release*.aar' | head -n 1 || 
 mkdir -p "$ROOT/app/libs"
 cp "$AAR" "$ROOT/app/libs/giac-android.aar"
 
+echo "Optimizing the AAR (strip symbols, drop x86)..."
+OPT="$(mktemp -d)"
+unzip -q "$ROOT/app/libs/giac-android.aar" -d "$OPT"
+rm -rf "$OPT/jni/x86" "$OPT/jni/x86_64"
+STRIP="$TOOLCHAIN/bin/llvm-strip"
+NM="$TOOLCHAIN/bin/llvm-nm"
+OK=1
+for so in "$OPT"/jni/*/*.so; do "$STRIP" --strip-unneeded "$so" || OK=0; done
+for so in "$OPT"/jni/*/libjavagiac.so; do
+  n=$("$NM" -D "$so" | grep -c -E 'Java_javagiac_giacJNI_(new_1context_1_1SWIG_10|new_1gen_1_1SWIG_125|gen_1eval|gen_1print_1_1SWIG_10|delete_1gen)$' || true)
+  echo "  $so: $n/5 JNI symbols the app calls"
+  [ "$n" -ge 5 ] || OK=0
+done
+if [ "$OK" = 1 ]; then
+  rm -f "$ROOT/app/libs/giac-android.aar"
+  (cd "$OPT" && zip -q -r -X "$ROOT/app/libs/giac-android.aar" .)
+  echo "AAR optimized."
+else
+  echo "WARNING: optimization skipped (strip or symbol check failed); keeping the original AAR."
+fi
+rm -rf "$OPT"
+
 echo "AAR contents:"
 unzip -l "$ROOT/app/libs/giac-android.aar" | grep -E "libjavagiac|libc\+\+_shared" || true
 echo "Done: $ROOT/app/libs/giac-android.aar"
