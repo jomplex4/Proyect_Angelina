@@ -43,10 +43,10 @@ class GoldenTest {
 
     @Test fun requiredGuideTopicsExist() {
         val t = Guide.entries.joinToString(" ") { it.title.lowercase() + " " + it.tags }
-        listOf("cube root", "nth root", "log base", "ln", "power", "fraction", "mixed", "exact", "definite", "indefinite", "derivative", "nth derivative",
-            "partial", "limit", "sum", "product", "solve", "system", "inequalit", "taylor", "determinant", "inverse", "eigen", "linear system", "vector",
-            "complex", "polar", "laplace", "inverse laplace", "differential", "unit", "base", "regression", "ans", "variable", "program", "zero", "minimum",
-            "intersection", "ratio").forEach { assertTrue("guide topic $it", t.contains(it)) }
+        listOf("raíz cúbica", "raíz enésima", "logaritmo", "ln", "potencia", "fraccion", "mixta", "exacto", "definida", "indefinida", "derivada", "orden n",
+            "parcial", "límite", "sumatoria", "productoria", "resolver", "sistema", "inecuacion", "taylor", "determinante", "inversa", "autovalores", "sistema lineal", "vector",
+            "complejo", "polar", "laplace", "laplace inversa", "diferencial", "unidades", "base", "regresion", "ans", "variable", "programa", "raíz", "mínimo",
+            "intersección", "proporcion", "grado 2", "raíz dentro de raíz", "parábola", "porcentajes sucesivos", "interés simple", "es cierto").forEach { assertTrue("guide topic $it", t.contains(it)) }
     }
 
     @Test fun realGiacMatchesGoldenWhenAvailable() {

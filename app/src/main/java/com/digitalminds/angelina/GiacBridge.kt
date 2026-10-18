@@ -62,7 +62,7 @@ class GiacClient(private val ctx: Context) : CasEngine {
         override fun onServiceDisconnected(n: ComponentName) {
             svc = null
             ready = CompletableDeferred()
-            failAll("The math engine restarted. Try again.")
+            failAll("El motor matemático se reinició. Inténtalo de nuevo.")
         }
     }
 
@@ -90,27 +90,27 @@ class GiacClient(private val ctx: Context) : CasEngine {
     override suspend fun eval(expr: String): CasResult = evalFor(expr, timeoutMs)
 
     suspend fun evalFor(expr: String, ms: Long): CasResult {
-        if (withTimeoutOrNull(5_000) { ready.await() } == null) return CasResult(error = "The math engine is not available.")
-        val s = svc ?: return CasResult(error = "The math engine is not available.")
+        if (withTimeoutOrNull(5_000) { ready.await() } == null) return CasResult(error = "El motor matemático no está disponible.")
+        val s = svc ?: return CasResult(error = "El motor matemático no está disponible.")
         val id = synchronized(this) { nextId++ }
         val d = CompletableDeferred<CasResult>()
         pending[id] = d
         val m = Message.obtain(null, MSG_EVAL, id, 0)
         m.data = Bundle().apply { putString("e", expr) }
         m.replyTo = reply
-        try { s.send(m) } catch (e: RemoteException) { pending.remove(id); return CasResult(error = "The math engine is not available.") }
+        try { s.send(m) } catch (e: RemoteException) { pending.remove(id); return CasResult(error = "El motor matemático no está disponible.") }
         val r = withTimeoutOrNull(ms) { d.await() }
         if (r == null) {
             pending.remove(id)
             kill()
-            return CasResult(error = "Stopped after ${ms / 1000} s. The calculation was too long.")
+            return CasResult(error = "Se detuvo a los ${ms / 1000} s. El cálculo fue demasiado largo.")
         }
         return r
     }
 
     fun cancel() {
         kill()
-        failAll("Calculation cancelled.")
+        failAll("Cálculo cancelado.")
     }
 
     private fun kill() {
@@ -152,7 +152,7 @@ class CasService : Service() {
         try {
             giacCtx = javagiac.giacJNI.new_context__SWIG_0()
         } catch (t: Throwable) {
-            initError = "The math engine is not installed. Build libs/giac-android.aar (see README)."
+            initError = "El motor matemático no está instalado en esta versión."
         }
     }
 
@@ -168,7 +168,7 @@ class CasService : Service() {
             val i = s.indexOf("Error:")
             if (i >= 0) CasResult(error = s.substring(i + 6).trim()) else CasResult(out = s)
         } catch (t: Throwable) {
-            CasResult(error = "Syntax error.")
+            CasResult(error = "Error de escritura.")
         }
     }
 

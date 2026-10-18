@@ -263,17 +263,25 @@ object Editor {
 }
 
 object Names {
+    /** Solo presentacion: el nombre que ve el usuario. Lo que se envia a Giac no cambia. */
     val display = mapOf(
-        "limit" to "lim", "diff" to "d/dx", "log10" to "log", "logb" to "log", "comb" to "nCr", "perm" to "nPr",
-        "irem" to "mod", "iquo" to "quo", "ifactor" to "factor#", "laplace" to "Laplace", "ilaplace" to "iLaplace",
-        "ztrans" to "Ztrans", "fourier" to "Fourier", "eigenvals" to "eig", "eigenvects" to "eigvec",
-        "polar_coordinates" to "polar", "shl" to "shl", "shr" to "shr", "not" to "not", "dms" to "▶DMS", "fromdms" to "DMS▶"
+        "sin" to "sen", "sinh" to "senh", "limit" to "lim", "diff" to "d/dx", "log10" to "log", "logb" to "log", "comb" to "C", "perm" to "P",
+        "irem" to "mod", "iquo" to "cociente", "ifactor" to "factores", "laplace" to "Laplace", "ilaplace" to "Laplace⁻¹",
+        "ztrans" to "Z", "fourier" to "Fourier", "eigenvals" to "autovalores", "eigenvects" to "autovectores",
+        "polar_coordinates" to "polar", "dms" to "▶GMS", "fromdms" to "GMS▶",
+        "solve" to "resolver", "csolve" to "resolverℂ", "fsolve" to "resolver≈", "desolve" to "EDO", "linsolve" to "sistema",
+        "simplify" to "simplificar", "factor" to "factorizar", "expand" to "expandir", "partfrac" to "fracciones", "subst" to "sustituir",
+        "gcd" to "MCD", "lcm" to "MCM", "floor" to "piso", "ceil" to "techo", "round" to "redondear", "fPart" to "pdec", "iPart" to "pent",
+        "rand" to "aleatorio", "randint" to "aleatorio", "isprime" to "esprimo", "nextprime" to "sigprimo", "sum" to "Σ", "product" to "Π",
+        "int" to "∫", "transpose" to "transpuesta", "trace" to "traza", "norm" to "norma", "cross" to "cruz", "dot" to "punto",
+        "exact" to "exacto", "roots" to "raíces", "taylor" to "Taylor", "series" to "serie", "sign" to "signo", "conj" to "conjugado",
+        "re" to "Re", "im" to "Im", "arg" to "arg", "mean" to "media", "median" to "mediana", "stddev" to "σ", "stddevp" to "s"
     )
     val trig = setOf("sin", "cos", "tan", "cot", "sec", "csc")
     val itrig = setOf("asin", "acos", "atan", "acot", "asec", "acsc")
     private val inverse = mapOf(
-        "asin" to "sin⁻¹", "acos" to "cos⁻¹", "atan" to "tan⁻¹", "acot" to "cot⁻¹", "asec" to "sec⁻¹", "acsc" to "csc⁻¹",
-        "asinh" to "sinh⁻¹", "acosh" to "cosh⁻¹", "atanh" to "tanh⁻¹"
+        "asin" to "sen⁻¹", "acos" to "cos⁻¹", "atan" to "tan⁻¹", "acot" to "cot⁻¹", "asec" to "sec⁻¹", "acsc" to "csc⁻¹",
+        "asinh" to "senh⁻¹", "acosh" to "cosh⁻¹", "atanh" to "tanh⁻¹"
     )
     fun show(n: String) = inverse[n] ?: display[n] ?: n
 }

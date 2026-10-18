@@ -25,5 +25,7 @@ object Brand {
     val series = listOf(accentHi, blue, violet, orange, pink)
 
     val sans = FontFamily(Font(R.font.space_grotesk_regular, FontWeight.Normal), Font(R.font.space_grotesk_bold, FontWeight.Bold))
+    /** Atkinson Hyperlegible: la "l" lleva cola, asi "ln" no se confunde con "In". Se usa en teclas y matematicas. */
+    val math = FontFamily(Font(R.font.atkinson_regular, FontWeight.Normal), Font(R.font.atkinson_bold, FontWeight.Bold))
     val mono = FontFamily.Monospace
 }

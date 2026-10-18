@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -154,6 +155,9 @@ fun BusyLine(on: Boolean) {
     })
 }
 
+/** Giac responde true o false en inglés; aquí se muestran en español. */
+fun boolEs(t: String): String? = when (t.trim()) { "true" -> "Verdadero ✓"; "false" -> "Falso ✗"; else -> null }
+
 fun copy(ctx: Context, text: String) {
     ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("ANGELINA", text))
 }
@@ -206,16 +210,16 @@ private fun TopBar(vm: MainViewModel, screen: Screen) {
             TopIcon(R.drawable.ic_guide) { vm.go(Screen.Guide) }
             TopIcon(R.drawable.ic_settings) { vm.go(Screen.Settings) }
             Spacer(Modifier.weight(1f))
-            if (busy) Pill("Cancel", bg = Brand.keyOp, fg = Brand.error) { vm.cancel() }
+            if (busy) Pill("Cancelar", bg = Brand.keyOp, fg = Brand.error) { vm.cancel() }
             else {
                 val name = when (screen) {
-                    Screen.Home -> "Home"; Screen.Matrix -> "Matrix"; Screen.Stats -> "Stats"; Screen.Table -> "Table"; Screen.Graph -> "Graph"
-                    Screen.Programs -> "Programs"; Screen.Units -> "Units"; Screen.Guide -> "Guide"; Screen.Settings -> "Settings"
+                    Screen.Home -> "Inicio"; Screen.Matrix -> "Matrices"; Screen.Stats -> "Estadística"; Screen.Table -> "Tabla"; Screen.Graph -> "Gráfica"
+                    Screen.Programs -> "Programas"; Screen.Units -> "Unidades"; Screen.Guide -> "Manual"; Screen.Settings -> "Ajustes"
                 }
                 BasicText(name.uppercase(), style = label(12, Brand.text, true).copy(letterSpacing = 1.6.sp))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.pointerInput(Unit) { detectTapGestures { vm.cycleAngle() } }.padding(vertical = 8.dp)) {
-                    val a = when (st.angle) { 0 -> "DEG"; 2 -> "GRAD"; else -> "RAD" }
+                    val a = when (st.angle) { 0 -> "GRADOS"; 2 -> "CENT"; else -> "RAD" }
                     BasicText(a + if (st.base != 10) " " + when (st.base) { 2 -> "BIN"; 8 -> "OCT"; else -> "HEX" } else "", style = label(12, Brand.accentHi, true).copy(letterSpacing = 1.4.sp))
                 }
                 Spacer(Modifier.width(8.dp))
@@ -245,29 +249,29 @@ private fun HomeScreen(vm: MainViewModel) {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(painterResource(R.drawable.ic_mark), null, Modifier.size(width = 96.dp, height = 57.dp))
                     Spacer(Modifier.height(10.dp))
-                    Caption("Type an expression and press =")
+                    Caption("Escribe una operación y pulsa =")
                     Spacer(Modifier.height(14.dp))
                     Column(Modifier.padding(horizontal = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         for (tip in listOf(
-                            "Matrix: page 6, tap [M], then use + fila / + columna",
-                            "Long-press any key for variants and inverses",
-                            "Search any function with the magnifier",
-                            "Swipe the keys left or right for more pages"
+                            "Desliza las teclas a los lados para ver más páginas",
+                            "Mantén pulsada una tecla para ver sus variantes",
+                            "La lupa busca cualquier función por su nombre",
+                            "El libro abre el manual con ejemplos"
                         )) BasicText(tip, style = label(13, Brand.textDim, align = TextAlign.Center), modifier = Modifier.fillMaxWidth())
                     }
                 }
             } else {
                 val list = remember(hist) { hist.asReversed() }
-                LazyColumn(Modifier.fillMaxSize(), reverseLayout = true) {
+                val ls = rememberLazyListState()
+                // El resultado nuevo siempre queda a la vista, aunque antes se haya desplazado la lista.
+                LaunchedEffect(list.firstOrNull()?.id) { if (list.isNotEmpty()) ls.scrollToItem(0) }
+                LazyColumn(Modifier.fillMaxSize(), state = ls, reverseLayout = true) {
                     items(list, key = { it.id }) { h -> HistRow(h, st, vm) }
                 }
             }
         }
         Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)).padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                BasicText(err ?: "", Modifier.weight(1f).padding(start = 4.dp), style = label(13, Brand.error), maxLines = 2)
-                Pill("Verify", bg = Brand.keyNum, fg = Brand.violet) { vm.verify() }
-            }
+            if (err != null) BasicText(err ?: "", Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), style = label(13, Brand.error), maxLines = 2)
             MatBar(vm)
             Fld(vm, "home", Modifier.fillMaxWidth(), fs = 24f, h = 70.dp)
         }
@@ -294,6 +298,7 @@ private fun HistRow(h: Hist, s: Settings, vm: MainViewModel) {
     val inRow = remember(h.input) { Parse.row(h.input) ?: Row(listOf(Str(h.input))) }
     val res = remember(h.id, h.dec, s.eng, s.sig, s.mixed, s.base) {
         val t = (if (h.dec && h.approx != null) h.approx else h.exact) ?: ""
+        boolEs(t)?.let { return@remember Row(listOf(Str(it))) }
         Fmt.base(t, s.base)?.let { Row(listOf(Str(it))) } ?: Fmt.rows(Parse.row(t) ?: Row(listOf(Str(t))), s.eng, s.sig, s.mixed)
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp)) {
@@ -306,11 +311,11 @@ private fun HistRow(h: Hist, s: Settings, vm: MainViewModel) {
             if (menu) Popup(alignment = Alignment.TopEnd, onDismissRequest = { menu = false }) {
                 Column(Modifier.background(Brand.surface, RoundedCornerShape(12.dp)).border(1.dp, Brand.line, RoundedCornerShape(12.dp)).padding(6.dp)) {
                     for ((t, a) in listOf<Pair<String, () -> Unit>>(
-                        "Copy result" to { copy(ctx, (if (h.dec && h.approx != null) h.approx else h.exact) ?: "") },
-                        "Use as Ans" to { vm.useAns(h) },
-                        "Copy input" to { copy(ctx, h.input) },
-                        "Reuse input" to { vm.recall(h) }
-                    )) Box(Modifier.width(150.dp).height(40.dp).pointerInput(t) { detectTapGestures { menu = false; a() } }.padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
+                        "Copiar resultado" to { copy(ctx, (if (h.dec && h.approx != null) h.approx else h.exact) ?: "") },
+                        "Usar como Ans" to { vm.useAns(h) },
+                        "Copiar operación" to { copy(ctx, h.input) },
+                        "Volver a editar" to { vm.recall(h) }
+                    )) Box(Modifier.width(190.dp).height(40.dp).pointerInput(t) { detectTapGestures { menu = false; a() } }.padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
                         BasicText(t, style = label(15, Brand.text))
                     }
                 }
@@ -329,9 +334,9 @@ private fun ModesOverlay(vm: MainViewModel) {
                 .pointerInput(Unit) { detectTapGestures { } },
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Caption("Modes", Modifier.padding(8.dp))
-            for ((n, s) in listOf("Home" to Screen.Home, "Matrix and vectors" to Screen.Matrix, "Statistics" to Screen.Stats, "Table" to Screen.Table, "Graph" to Screen.Graph,
-                "Programs" to Screen.Programs, "Units and constants" to Screen.Units)) {
+            Caption("Modos", Modifier.padding(8.dp))
+            for ((n, s) in listOf("Inicio" to Screen.Home, "Matrices y vectores" to Screen.Matrix, "Estadística" to Screen.Stats, "Tabla de valores" to Screen.Table, "Gráfica" to Screen.Graph,
+                "Programas" to Screen.Programs, "Unidades y constantes" to Screen.Units, "Manual" to Screen.Guide)) {
                 Box(Modifier.fillMaxWidth().height(44.dp).background(Brand.keyNum, RoundedCornerShape(10.dp)).pointerInput(n) { detectTapGestures { vm.go(s) } }.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
                     BasicText(n, style = label(16, Brand.text))
                 }
@@ -346,23 +351,25 @@ private fun SearchOverlay(vm: MainViewModel) {
     val fr = remember { FocusRequester() }
     LaunchedEffect(Unit) { fr.requestFocus() }
     val results = remember(q) {
-        val k = q.trim().lowercase()
-        if (k.isEmpty()) vm.funcs.filter { it.name in setOf("int", "diff", "limit", "sum", "solve", "simplify", "factor", "det", "inv", "laplace") }
+        fun nz(t: String) = t.lowercase().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
+        val k = nz(q.trim())
+        if (k.isEmpty()) vm.funcs.filter { it.name in setOf("solve", "simplify", "factor", "int", "diff", "limit", "sum", "comb", "mean", "det") }
         else {
-            val alias = Aliases.map.filterKeys { it.contains(k) || k.contains(it) }.values.toSet()
+            val alias = Aliases.map.filterKeys { it.contains(k) || (k.length >= 3 && k.contains(it)) }.values.toSet()
             vm.funcs.mapNotNull { f ->
                 val n = f.name.lowercase()
+                val es = nz(FuncEs.desc[f.name] ?: "")
                 val score = when {
-                    n == k -> 0; n in alias -> 1; n.startsWith(k) -> 2; n.contains(k) -> 3; f.desc.lowercase().contains(k) -> 4; else -> -1
+                    n == k -> 0; n in alias -> 1; es.isNotEmpty() && es.contains(k) -> 2; n.startsWith(k) -> 3; n.contains(k) -> 4; else -> -1
                 }
-                if (score < 0) null else Triple(score, f.name.length, f)
+                if (score < 0) null else Triple(score + (if (es.isEmpty()) 10 else 0), f.name.length, f)
             }.sortedWith(compareBy<Triple<Int, Int, FDef>>({ it.first }, { it.second })).take(60).map { it.third }
         }
     }
     Column(Modifier.fillMaxSize().background(Brand.bg).padding(horizontal = 12.dp)) {
         Spacer(Modifier.height(52.dp))
         Box(Modifier.fillMaxWidth().height(48.dp).background(Brand.surface, RoundedCornerShape(12.dp)).border(1.5.dp, Brand.accent, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-            if (q.isEmpty()) BasicText("Search a function: integral, log, matrix...", style = label(16, Brand.textDim))
+            if (q.isEmpty()) BasicText("Busca: integral, logaritmo, matriz...", style = label(16, Brand.textDim))
             BasicTextField(q, { q = it }, Modifier.fillMaxWidth().focusRequester(fr), textStyle = label(17, Brand.text), cursorBrush = SolidColor(Brand.accentHi), singleLine = true,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
         }
@@ -370,8 +377,8 @@ private fun SearchOverlay(vm: MainViewModel) {
         LazyColumn(Modifier.fillMaxSize()) {
             items(results, key = { it.name }) { f ->
                 Column(Modifier.fillMaxWidth().pointerInput(f.name) { detectTapGestures { vm.insertFunc(f) } }.padding(vertical = 8.dp, horizontal = 4.dp)) {
-                    BasicText(f.name + "(" + List(f.argc) { "_" }.joinToString(", ") + ")", style = label(16, Brand.text, true))
-                    BasicText(f.desc, style = label(13, Brand.textDim), maxLines = 1)
+                    BasicText(Names.show(f.name) + "(" + List(f.argc) { "_" }.joinToString(", ") + ")", style = label(16, Brand.text, true))
+                    BasicText(FuncEs.desc[f.name] ?: "Función avanzada de Giac", style = label(13, Brand.textDim), maxLines = 1)
                 }
             }
         }

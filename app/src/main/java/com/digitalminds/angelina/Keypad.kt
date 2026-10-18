@@ -48,7 +48,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import kotlinx.coroutines.launch
 
-enum class S { AC, DEL, EQ, LEFT, RIGHT, LP, RP, COMMA, FRAC, MIXED, SQRT, NROOT, CBRT, POW, SQUARE, CUBE, INV, EXP10, EXPE, X10, ANS, MAT2, MAT3, MAT4, LST, BASE }
+enum class S { AC, DEL, EQ, LEFT, RIGHT, LP, RP, COMMA, FRAC, MIXED, SQRT, NROOT, CBRT, POW, SQUARE, CUBE, INV, EXP10, EXPE, X10, ANS, MAT2, MAT3, MAT4, LST, BASE, VERIFY }
 
 sealed interface KA {
     data class T(val s: String) : KA
@@ -70,11 +70,11 @@ object Keys {
 
     val pages: List<List<Key>> = listOf(
         listOf(
-            f("sin", "sin", more = listOf(fv("sin⁻¹", "asin"), fv("sinh", "sinh"), fv("sinh⁻¹", "asinh"))),
+            f("sen", "sin", more = listOf(fv("sen⁻¹", "asin"), fv("senh", "sinh"), fv("senh⁻¹", "asinh"))),
             f("cos", "cos", more = listOf(fv("cos⁻¹", "acos"), fv("cosh", "cosh"), fv("cosh⁻¹", "acosh"))),
             f("tan", "tan", more = listOf(fv("tan⁻¹", "atan"), fv("tanh", "tanh"), fv("tanh⁻¹", "atanh"))),
-            f("ln", "ln", more = listOf(sv("eˣ", S.EXPE), fv("log b", "logb", "", ""))),
-            f("log", "log10", more = listOf(sv("10ˣ", S.EXP10), fv("log b", "logb", "", ""))),
+            f("ln", "ln", more = listOf(sv("eˣ", S.EXPE), fv("logₐ", "logb", "", ""))),
+            f("log", "log10", more = listOf(sv("10ˣ", S.EXP10), fv("logₐ", "logb", "", ""))),
             sp("√", S.SQRT, more = listOf(sv("ⁿ√", S.NROOT), sv("∛", S.CBRT))),
             sp("x²", S.SQUARE, more = listOf(sv("x³", S.CUBE), sv("x⁻¹", S.INV))),
             sp("^", S.POW),
@@ -82,47 +82,47 @@ object Keys {
             t("e", more = listOf(sv("eˣ", S.EXPE)))
         ),
         listOf(
-            f("sin⁻¹", "asin", more = listOf(fv("sinh⁻¹", "asinh"))),
+            f("sen⁻¹", "asin", more = listOf(fv("senh⁻¹", "asinh"))),
             f("cos⁻¹", "acos", more = listOf(fv("cosh⁻¹", "acosh"))),
             f("tan⁻¹", "atan", more = listOf(fv("tanh⁻¹", "atanh"))),
             f("cot", "cot", more = listOf(fv("cot⁻¹", "acot"))),
             f("sec", "sec", more = listOf(fv("sec⁻¹", "asec"))),
             f("csc", "csc", more = listOf(fv("csc⁻¹", "acsc"))),
-            f("sinh", "sinh", more = listOf(fv("sinh⁻¹", "asinh"))),
+            f("senh", "sinh", more = listOf(fv("senh⁻¹", "asinh"))),
             f("cosh", "cosh", more = listOf(fv("cosh⁻¹", "acosh"))),
             f("tanh", "tanh", more = listOf(fv("tanh⁻¹", "atanh"))),
-            f("abs", "abs", more = listOf(fv("sign", "sign"), fv("conj", "conj")))
+            f("|x|", "abs", more = listOf(fv("signo", "sign"), fv("conjug.", "conj")))
         ),
         listOf(
             t("n!", "!"), f("nCr", "comb", "", ""), f("nPr", "perm", "", ""),
-            f("mod", "irem", "", "", more = listOf(fv("quo", "iquo", "", ""), fv("factor", "ifactor"), fv("prime?", "isprime"), fv("next", "nextprime"))),
-            f("gcd", "gcd", "", ""), f("lcm", "lcm", "", ""),
-            f("floor", "floor", more = listOf(fv("round", "round"), fv("frac", "fPart"), fv("int", "iPart"))),
-            f("ceil", "ceil", more = listOf(fv("▶DMS", "dms"), fv("DMS▶", "fromdms", "", "", ""))),
-            f("rand", "rand", "0", "1", more = listOf(fv("randint", "randint", "1", "6"))), sp("10ˣ", S.EXP10)
+            f("mod", "irem", "", "", more = listOf(fv("cociente", "iquo", "", ""), fv("factores", "ifactor"), fv("¿primo?", "isprime"), fv("sig.primo", "nextprime"))),
+            f("MCD", "gcd", "", ""), f("MCM", "lcm", "", ""),
+            f("piso", "floor", more = listOf(fv("redond.", "round"), fv("p.dec", "fPart"), fv("p.ent", "iPart"))),
+            f("techo", "ceil", more = listOf(fv("▶GMS", "dms"), fv("GMS▶", "fromdms", "", "", ""))),
+            f("aleat", "rand", "0", "1", more = listOf(fv("aleat.ent", "randint", "1", "6"))), sp("10ˣ", S.EXP10)
         ),
         listOf(
             f("d/dx", "diff", "", "x", more = listOf(fv("dⁿ/dxⁿ", "diff", "", "x", "2"), fv("∂/∂y", "diff", "", "y"))),
-            f("∫", "int", "", "x"), f("∫[a,b]", "int", "", "x", "", ""),
-            f("lim", "limit", "", "x", "", more = listOf(fv("lim⁺", "limit", "", "x", "", "1"), fv("lim⁻", "limit", "", "x", "", "-1"))),
+            f("∫", "int", "", "x"), f("∫ₐᵇ", "int", "", "x", "", ""),
+            f("lím", "limit", "", "x", "", more = listOf(fv("lím⁺", "limit", "", "x", "", "1"), fv("lím⁻", "limit", "", "x", "", "-1"))),
             f("Σ", "sum", "", "k", "1", ""), f("Π", "product", "", "k", "1", ""),
-            f("taylor", "taylor", "", "x=0", "5", more = listOf(fv("series", "series", "", "x=0", "5"))),
-            f("solve", "solve", "", "x", more = listOf(fv("csolve", "csolve", "", "x"), fv("fsolve", "fsolve", "", "x=0"))),
-            f("desolve", "desolve", "", "x", "y"),
-            f("Laplace", "laplace", "", "t", "s", more = listOf(fv("iLaplace", "ilaplace", "", "s", "t"), fv("Ztrans", "ztrans", "", "n", "z"), fv("Fourier", "fourier", "", "t", "w")))
+            f("Taylor", "taylor", "", "x=0", "5", more = listOf(fv("serie", "series", "", "x=0", "5"))),
+            f("resolver", "solve", "", "x", more = listOf(fv("en ℂ", "csolve", "", "x"), fv("aprox.", "fsolve", "", "x=0"))),
+            f("EDO", "desolve", "", "x", "y"),
+            f("Laplace", "laplace", "", "t", "s", more = listOf(fv("Laplace⁻¹", "ilaplace", "", "s", "t"), fv("Z", "ztrans", "", "n", "z"), fv("Fourier", "fourier", "", "t", "w")))
         ),
         listOf(
-            f("simplify", "simplify"), f("factor", "factor"), f("expand", "expand"), f("partfrac", "partfrac"), f("subst", "subst", "", "x="),
-            f("linsolve", "linsolve", "[]", "[]"), f("roots", "roots"), f("fsolve", "fsolve", "", "x=0"),
-            Key("ineq", KA.T("<"), 0, listOf(tv("="), tv("<"), tv(">"), tv("≤"), tv("≥"), tv("≠"), tv(" and "), tv(" or ")), true),
+            f("simplif.", "simplify"), f("factoriz.", "factor"), f("expandir", "expand"), f("fr.parc.", "partfrac"), f("sustit.", "subst", "", "x="),
+            f("sist.lin", "linsolve", "[]", "[]"), f("raíces", "roots"), f("aprox.", "fsolve", "", "x=0"),
+            Key("= < >", KA.T("<"), 0, listOf(tv("="), tv("<"), tv(">"), tv("≤"), tv("≥"), tv("≠"), tv(" and "), tv(" or ")), true),
             f("▶a/b", "exact")
         ),
         listOf(
             sp("[M]", S.MAT2, more = listOf(sv("3×3", S.MAT3), sv("4×4", S.MAT4), sv("[ ]", S.LST))),
-            f("det", "det", more = listOf(fv("Aᵀ", "transpose"), fv("rref", "rref"), fv("LU", "lu"), fv("QR", "qr"), fv("trace", "trace"))),
-            f("inv", "inv"), f("eig", "eigenvals", more = listOf(fv("eigvec", "eigenvects"))),
-            f("dot", "dot", "", "", more = listOf(fv("norm", "norm"), fv("cross", "cross", "", ""))),
-            f("cross", "cross", "", ""), t("i", more = listOf(fv("re", "re"), fv("im", "im"), fv("arg", "arg"), fv("conj", "conj"))), f("▶polar", "polar_coordinates"), f("▶rect", "normal"),
+            f("det", "det", more = listOf(fv("Aᵀ", "transpose"), fv("rref", "rref"), fv("LU", "lu"), fv("QR", "qr"), fv("traza", "trace"))),
+            f("inv", "inv"), f("autoval", "eigenvals", more = listOf(fv("autovec", "eigenvects"))),
+            f("punto", "dot", "", "", more = listOf(fv("norma", "norm"), fv("cruz", "cross", "", ""))),
+            f("cruz", "cross", "", ""), t("i", more = listOf(fv("Re", "re"), fv("Im", "im"), fv("arg", "arg"), fv("conjug.", "conj"))), f("▶polar", "polar_coordinates"), f("▶rect", "normal"),
             Key("Bin-Hex", KA.Sp(S.BASE), 0, listOf(fv("and", "bitand", "", ""), fv("or", "bitor", "", ""), fv("xor", "bitxor", "", ""), fv("not", "not"), fv("shl", "shl", "", ""), fv("shr", "shr", "", ""), tv("0x"), tv("0b"), tv("A"), tv("B"), tv("C"), tv("D"), tv("E"), tv("F")))
         )
     )
@@ -140,7 +140,7 @@ object Keys {
         listOf(t("7", role = 1), t("8", role = 1), t("9", role = 1), sp("⌫", S.DEL, 2), sp("AC", S.AC, 2)),
         listOf(t("4", role = 1), t("5", role = 1), t("6", role = 1), t("×", role = 2), t("÷", role = 2)),
         listOf(t("1", role = 1), t("2", role = 1), t("3", role = 1), t("+", role = 2), t("−", role = 2)),
-        listOf(t("0", role = 1), t(".", role = 1), sp("×10ˣ", S.X10, 2), sp("Ans", S.ANS, 2, more = listOf(tv("PreAns"))), sp("=", S.EQ, 3))
+        listOf(t("0", role = 1), t(".", role = 1), sp("×10ˣ", S.X10, 2), sp("Ans", S.ANS, 2, more = listOf(tv("PreAns"))), sp("=", S.EQ, 3, more = listOf(sv("¿Es cierto?", S.VERIFY))))
     )
 }
 
@@ -158,7 +158,7 @@ private fun KeyBtn(k: Key, modifier: Modifier, haptics: Boolean, onKey: (KA) -> 
     val scope = rememberCoroutineScope()
     var pop by remember { mutableStateOf(false) }
     val bg = when (k.role) { 1 -> Brand.keyNum; 2 -> Brand.keyOp; 3 -> Brand.accent; else -> Brand.keyFn }
-    val fs = when { k.label.length <= 2 -> 19.sp; k.label.length <= 5 -> 15.sp; else -> 12.sp }
+    val fs = when { k.label.length <= 2 -> 20.sp; k.label.length <= 5 -> 16.sp; k.label.length <= 7 -> 13.sp; else -> 11.5.sp }
     Box(
         modifier
             .graphicsLayer { scaleX = sc.value; scaleY = sc.value }
@@ -182,7 +182,7 @@ private fun KeyBtn(k: Key, modifier: Modifier, haptics: Boolean, onKey: (KA) -> 
             },
         contentAlignment = Alignment.Center
     ) {
-        BasicText(k.label, style = TextStyle(color = Brand.text, fontFamily = Brand.sans, fontSize = fs, fontWeight = if (k.role == 0) FontWeight.Normal else FontWeight.Bold, textAlign = TextAlign.Center), maxLines = 1)
+        BasicText(k.label, style = TextStyle(color = Brand.text, fontFamily = Brand.math, fontSize = fs, fontWeight = if (k.role == 0) FontWeight.Normal else FontWeight.Bold, textAlign = TextAlign.Center), maxLines = 1)
         if (pop) {
             Popup(popupPositionProvider = Above(), onDismissRequest = { pop = false }) {
                 Column(
@@ -191,11 +191,11 @@ private fun KeyBtn(k: Key, modifier: Modifier, haptics: Boolean, onKey: (KA) -> 
                 ) {
                     for (row in k.more.chunked(6)) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         for ((lab, act) in row) Box(
-                            Modifier.size(width = if (lab.length > 4) 64.dp else 44.dp, height = 40.dp)
+                            Modifier.size(width = if (lab.length > 6) 96.dp else if (lab.length > 4) 70.dp else 44.dp, height = 40.dp)
                                 .background(Brand.keyNum, RoundedCornerShape(9.dp))
                                 .pointerInput(lab) { detectTapGestures { pop = false; onKey(act) } },
                             contentAlignment = Alignment.Center
-                        ) { BasicText(lab, style = TextStyle(color = Brand.text, fontFamily = Brand.sans, fontSize = 15.sp), maxLines = 1) }
+                        ) { BasicText(lab, style = TextStyle(color = Brand.text, fontFamily = Brand.math, fontSize = 15.sp), maxLines = 1) }
                     }
                 }
             }

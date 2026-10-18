@@ -202,6 +202,7 @@ class MainViewModel : ViewModel() {
             S.MAT3 -> edit { Editor.insert(it, Mat(3, 3, List(9) { Row() }), 0) }
             S.MAT4 -> edit { Editor.insert(it, Mat(4, 4, List(16) { Row() }), 0) }
             S.LST -> edit { Editor.insert(it, Lst(listOf(Row())), 0) }
+            S.VERIFY -> if (focus.value == "home") verify()
             S.BASE -> setSettings(settings.value.copy(base = when (settings.value.base) { 10 -> 2; 2 -> 8; 8 -> 16; else -> 10 }))
         }
     }
@@ -210,15 +211,19 @@ class MainViewModel : ViewModel() {
     private val defRe = Regex("""^\s*([A-Za-z][A-Za-z0-9_]*)\s*(\([^)]*\))?\s*:=""")
 
     fun friendly(m: String?): String {
-        val t = m?.trim() ?: return "Something went wrong."
+        val t = m?.trim() ?: return "Algo salió mal."
         return when {
-            t.contains("Bad Argument", true) -> "Check the arguments of this function."
-            t.contains("Syntax", true) || t.contains("parse", true) -> "Syntax error. Check brackets and operators."
-            t.contains("Dimension", true) -> "The sizes do not match."
-            t.contains("division by 0", true) || t.contains("Division", true) -> "Division by zero."
-            t.contains("Incompatible", true) -> "Incompatible units."
-            t.length > 90 -> t.take(90) + "..."
-            else -> t
+            t.contains("Bad Argument", true) -> "Revisa los datos que pusiste dentro de esta función."
+            t.contains("Syntax", true) || t.contains("parse", true) -> "Error de escritura. Revisa paréntesis y operadores."
+            t.contains("Dimension", true) -> "Los tamaños no coinciden."
+            t.contains("division by 0", true) || t.contains("Division", true) -> "División entre cero."
+            t.contains("Incompatible", true) -> "Unidades incompatibles."
+            t.contains("Unable", true) || t.contains("not implemented", true) -> "No hay solución exacta disponible. Prueba la versión aproximada (mantén pulsada la tecla)."
+            t.contains("Undefined", true) || t.contains("undef", true) -> "El resultado no está definido."
+            t.contains("Invalid", true) || t.contains("Bad", true) -> "Hay un dato no válido en la expresión."
+            t.contains("Timeout", true) || t.contains("Interrupted", true) -> "El cálculo se detuvo."
+            t.contains("motor", true) || t.contains("cálculo", true) || t.contains("Se detuvo", true) || t.contains("escritura", true) -> t
+            else -> "No se pudo calcular. Revisa la expresión."
         }
     }
 
@@ -234,7 +239,7 @@ class MainViewModel : ViewModel() {
         if (Editor.isBlank(ed.row) || busy.value) return
         Editor.firstEmpty(ed.row)?.let {
             field("home").value = Ed(ed.row, it)
-            error.value = "Fill in the empty box."
+            error.value = "Completa el casillero vacío."
             return
         }
         run(Ser.giac(ed.row, ctx()), ed)
@@ -246,8 +251,8 @@ class MainViewModel : ViewModel() {
     fun verify() {
         val ed = field("home").value
         val i = ed.row.nodes.indexOfFirst { it is Op && it.c == "=" }
-        if (i <= 0 || i == ed.row.nodes.lastIndex) { error.value = "Write an equality such as a = b to verify it."; return }
-        Editor.firstEmpty(ed.row)?.let { field("home").value = Ed(ed.row, it); error.value = "Fill in the empty box."; return }
+        if (i <= 0 || i == ed.row.nodes.lastIndex) { error.value = "Escribe una igualdad como a = b para comprobarla."; return }
+        Editor.firstEmpty(ed.row)?.let { field("home").value = Ed(ed.row, it); error.value = "Completa el casillero vacío."; return }
         val l = Ser.giac(Row(ed.row.nodes.take(i)), ctx())
         val r = Ser.giac(Row(ed.row.nodes.drop(i + 1)), ctx())
         viewModelScope.launch {
@@ -275,7 +280,7 @@ class MainViewModel : ViewModel() {
                 if (ed != null) field("home").value = Ed(ed.row, Cur(emptyList(), ed.row.nodes.size))
             } else {
                 val exact = r.out!!.trim()
-                if (exact == "undef" || exact.isEmpty()) error.value = "The result is undefined."
+                if (exact == "undef" || exact.isEmpty()) error.value = "El resultado no está definido."
                 else {
                     val ap = approxOf(exact)
                     val h = Hist(nextId++, src, exact, ap, null)
@@ -353,7 +358,7 @@ class MainViewModel : ViewModel() {
             "A*B" -> "$a*$b"
             "A^n" -> "$a^(${cellText("M:pow:0:0")})"
             "Ax=b" -> {
-                if (ra != ca) { mx.update { MxState(it.name, it.dims, it.vdim, null, null, "A must be square.") }; return }
+                if (ra != ca) { mx.update { MxState(it.name, it.dims, it.vdim, null, null, "La matriz A debe ser cuadrada.") }; return }
                 val bv = (0 until ra).map { cellText("M:U:$it:0") }
                 val eq = (0 until ra).joinToString(",") { i -> (0 until ca).joinToString("+") { j -> "(${cellText("M:A:$i:$j")})*x${j + 1}" } + "=" + bv[i] }
                 "linsolve([$eq],[" + (1..ca).joinToString(",") { "x$it" } + "])"
@@ -393,17 +398,17 @@ class MainViewModel : ViewModel() {
             val xs = col("x", 200)
             val out = ArrayList<Pair<String, String>>()
             var err: String? = null
-            if (xs.isEmpty()) err = "Enter data in the X column first."
+            if (xs.isEmpty()) err = "Primero escribe datos en la columna X."
             else if (!s.two) {
                 val l = "[" + xs.joinToString(",") + "]"
-                for ((lab, e) in listOf("n" to "size($l)", "mean" to "evalf(mean($l))", "median" to "evalf(median($l))", "σ (population)" to "evalf(stddev($l))",
-                    "s (sample)" to "evalf(stddevp($l))", "Q1" to "evalf(quartile1($l))", "Q3" to "evalf(quartile3($l))", "min" to "min($l)", "max" to "max($l)", "Σx" to "sum($l)")) {
+                for ((lab, e) in listOf("n" to "size($l)", "media" to "evalf(mean($l))", "mediana" to "evalf(median($l))", "σ (poblacional)" to "evalf(stddev($l))",
+                    "s (muestral)" to "evalf(stddevp($l))", "Q1" to "evalf(quartile1($l))", "Q3" to "evalf(quartile3($l))", "mínimo" to "min($l)", "máximo" to "max($l)", "Σx" to "sum($l)")) {
                     val r = cas.eval(e)
                     out.add(lab to (r.out ?: friendly(r.error)))
                 }
             } else {
                 val ys = col("y", 200)
-                if (ys.size != xs.size) err = "X and Y need the same number of values."
+                if (ys.size != xs.size) err = "X e Y deben tener la misma cantidad de datos."
                 else regression(s.reg, "[" + xs.joinToString(",") + "]", "[" + ys.joinToString(",") + "]", out).let { err = it }
             }
             st.update { StState(it.two, it.rows, it.reg, it.dist, it.mode, out, err, it.dout) }
@@ -429,7 +434,7 @@ class MainViewModel : ViewModel() {
             else -> "${p(c[1])}*t^${p(c[0])}"
         }
         val names = when (type) { 0 -> listOf("a", "b"); 1 -> listOf("a", "b", "c"); 2 -> listOf("a", "b", "c", "d"); 3 -> listOf("a", "b"); 4 -> listOf("a (base)", "b"); else -> listOf("m", "a") }
-        out.add("model" to when (type) {
+        out.add("modelo" to when (type) {
             0 -> "y=a*x+b"; 1 -> "y=a*x^2+b*x+c"; 2 -> "y=a*x^3+b*x^2+c*x+d"; 3 -> "y=a*ln(x)+b"; 4 -> "y=b*a^x"; else -> "y=a*x^m"
         })
         c.forEachIndexed { i, v -> out.add(names.getOrElse(i) { "c$i" } to v) }
@@ -502,7 +507,7 @@ class MainViewModel : ViewModel() {
     fun graphAnalyze(kind: Int) {
         val i = gv.sel
         val f = field("G:$i").value.row
-        if (Editor.isBlank(f)) { gv.info = "Enter a function first."; return }
+        if (Editor.isBlank(f)) { gv.info = "Primero escribe una función."; return }
         val fs = Ser.giac(f, ctx())
         val x0 = if (gv.trace.isNaN()) gv.cx.toDouble() else gv.trace.toDouble()
         viewModelScope.launch {
@@ -512,31 +517,31 @@ class MainViewModel : ViewModel() {
                 1, 2 -> "fsolve(diff($fs,x)=0,x=$x0)"
                 3 -> {
                     val j = (1..3).map { (i + it) % 4 }.firstOrNull { !Editor.isBlank(field("G:$it").value.row) }
-                    if (j == null) { gv.info = "Enter a second function."; busy.value = false; return@launch }
+                    if (j == null) { gv.info = "Escribe una segunda función."; busy.value = false; return@launch }
                     "fsolve(($fs)=(${Ser.giac(field("G:$j").value.row, ctx())}),x=$x0)"
                 }
                 else -> {
-                    if (gv.anchor.isNaN() || gv.trace.isNaN()) { gv.info = "Tap to set a start (A), then move to the end."; busy.value = false; return@launch }
+                    if (gv.anchor.isNaN() || gv.trace.isNaN()) { gv.info = "Toca para fijar el inicio (Marcar A) y luego muévete al final."; busy.value = false; return@launch }
                     "evalf(int($fs,x,${gv.anchor},${gv.trace}))"
                 }
             }
             val r = cas.eval(expr)
             val v = gnum(r.out)
-            if (!r.ok || v == null) gv.info = friendly(r.error ?: "No result near the trace point.")
+            if (!r.ok || v == null) gv.info = friendly(r.error ?: "No hay resultado cerca del punto marcado.")
             else if (kind == 4) gv.info = "Integral = " + fmt(v)
             else {
                 gv.trace = v.toFloat()
                 val y = graphFn(i)?.f(v)
                 val tag = when (kind) {
-                    0 -> "Zero"
-                    3 -> "Intersection"
+                    0 -> "Raíz"
+                    3 -> "Intersección"
                     else -> {
                         val fn = graphFn(i)
                         val h = 1e-3 * maxOf(1.0, kotlin.math.abs(v))
                         val c = fn?.f(v) ?: Double.NaN
                         val l = fn?.f(v - h) ?: Double.NaN
                         val rr = fn?.f(v + h) ?: Double.NaN
-                        if (c <= l && c <= rr) "Minimum" else if (c >= l && c >= rr) "Maximum" else "Critical point"
+                        if (c <= l && c <= rr) "Mínimo" else if (c >= l && c >= rr) "Máximo" else "Punto crítico"
                     }
                 }
                 gv.info = "$tag: x = ${fmt(v)}" + (if (y != null) ", y = ${fmt(y)}" else "")
@@ -546,7 +551,7 @@ class MainViewModel : ViewModel() {
     }
 
     fun fmt(v: Double): String {
-        if (v.isNaN() || v.isInfinite()) return "undefined"
+        if (v.isNaN() || v.isInfinite()) return "indefinido"
         val sig = settings.value.sig.let { if (it > 0) it else 8 }
         val nodes = Fmt.number(BigDecimal(v, MathContext(15)).toPlainString(), settings.value.eng, sig)
         return Ser.giac(Row(nodes)).replace("*10^(", "e").replace(")", "")

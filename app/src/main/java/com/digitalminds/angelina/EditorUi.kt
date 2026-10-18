@@ -72,7 +72,7 @@ class Lo(private val tm: TextMeasurer, private val d: Density, private val col: 
     private fun measure(s: String, fs: Float, bold: Boolean): TextLayoutResult {
         val key = "$s|$fs|$bold|${col.value}|${d.density}|${d.fontScale}"
         return TextCache.get(key) {
-            tm.measure(s, TextStyle(fontFamily = Brand.sans, fontSize = with(d) { fs.toSp() }, color = col, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal))
+            tm.measure(s, TextStyle(fontFamily = Brand.math, fontSize = with(d) { fs.toSp() }, color = col, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal))
         }
     }
 

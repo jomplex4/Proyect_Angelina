@@ -160,3 +160,13 @@ trig	sec(60*pi/180)	2
 trig	csc(30*pi/180)	2
 trig	simplify(acot(1)/(pi/180))	45
 trig	simplify(asin(1/2)/(pi/180))	30
+beca	solve(2*x^2-3*x-2=0,x)	list[-1/2,2]
+beca	simplify(sqrt(3+2*sqrt(2)))	sqrt(2)+1
+beca	x^2-4*x+3	x^2-4*x+3
+beca	50*(1+10/100)*(1-30/100)*(1-5/100)	1463/40
+beca	1-(1-20/100)*(1-40/100)	13/25
+beca	3000*30/100*3	2700
+beca	median([18,25,12,15,20,22,15,30,18,15])	18.0
+beca	comb(10,3)	120
+beca	3^2+4^2=5^2	25=25
+beca	255	255

@@ -74,7 +74,7 @@ private fun PillRows(items: List<Pair<String, () -> Unit>>, per: Int = 4) {
 
 @Composable
 private fun ResultRow(text: String, fs: Float = 20f) {
-    val row = remember(text) { Parse.row(text) ?: Row(listOf(Str(text))) }
+    val row = remember(text) { boolEs(text)?.let { Row(listOf(Str(it))) } ?: Parse.row(text) ?: Row(listOf(Str(text))) }
     Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(row, fs) }
 }
 
@@ -92,11 +92,11 @@ fun MatrixScreen(vm: MainViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (isVec) { Pill("2D", selected = s.vdim == 2) { if (s.vdim == 3) vm.mxResize(-1, 0) }; Pill("3D", selected = s.vdim == 3) { if (s.vdim == 2) vm.mxResize(1, 0) } }
             else {
-                Pill("- row") { vm.mxResize(-1, 0) }; Pill("+ row") { vm.mxResize(1, 0) }
-                Pill("- col") { vm.mxResize(0, -1) }; Pill("+ col") { vm.mxResize(0, 1) }
+                Pill("− fila") { vm.mxResize(-1, 0) }; Pill("+ fila") { vm.mxResize(1, 0) }
+                Pill("− col.") { vm.mxResize(0, -1) }; Pill("+ col.") { vm.mxResize(0, 1) }
             }
             Spacer(Modifier.weight(1f))
-            Caption("$rows x $cols", Modifier.align(Alignment.CenterVertically))
+            Caption("$rows × $cols", Modifier.align(Alignment.CenterVertically))
         }
         Box(Modifier.horizontalScroll(rememberScrollState())) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -105,11 +105,11 @@ fun MatrixScreen(vm: MainViewModel) {
                 }
             }
         }
-        if (isVec) PillRows(listOf("dot" to { vm.mxOp("dot") }, "cross" to { vm.mxOp("cross") }, "norm" to { vm.mxOp("norm") }, "Save" to { vm.mxSave() }))
+        if (isVec) PillRows(listOf("punto" to { vm.mxOp("dot") }, "cruz" to { vm.mxOp("cross") }, "norma" to { vm.mxOp("norm") }, "Guardar" to { vm.mxSave() }))
         else {
             PillRows(listOf("det" to { vm.mxOp("det") }, "inv" to { vm.mxOp("inv") }, "Aᵀ" to { vm.mxOp("T") }, "rref" to { vm.mxOp("rref") },
-                "eig" to { vm.mxOp("eig") }, "eigvec" to { vm.mxOp("eigvec") }, "LU" to { vm.mxOp("lu") }, "QR" to { vm.mxOp("qr") },
-                "A+B" to { vm.mxOp("A+B") }, "A×B" to { vm.mxOp("A*B") }, "Ax=u" to { vm.mxOp("Ax=b") }, "Save" to { vm.mxSave() }))
+                "autoval" to { vm.mxOp("eig") }, "autovec" to { vm.mxOp("eigvec") }, "LU" to { vm.mxOp("lu") }, "QR" to { vm.mxOp("qr") },
+                "A+B" to { vm.mxOp("A+B") }, "A×B" to { vm.mxOp("A*B") }, "Ax=u" to { vm.mxOp("Ax=b") }, "Guardar" to { vm.mxSave() }))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill("Aⁿ, n =") { vm.mxOp("A^n") }
                 Fld(vm, "M:pow:0:0", Modifier.width(80.dp), fs = 16f, h = 38.dp)
@@ -117,10 +117,10 @@ fun MatrixScreen(vm: MainViewModel) {
         }
         s.err?.let { BasicText(it, style = label(14, Brand.error)) }
         s.out?.let { o ->
-            Caption("Result")
+            Caption("Resultado")
             ResultRow(o)
             s.dec?.let { ResultRow(it, 16f) }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Pill("To Home") { vm.sendExpr(o, false) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Pill("Llevar a Inicio") { vm.sendExpr(o, false) } }
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -132,7 +132,7 @@ fun StatsScreen(vm: MainViewModel) {
     val s by vm.st.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Chips(listOf("1 variable", "2 variables", "Distributions"), tab) { tab = it; vm.stSet { st -> st.copy(two = it == 1, out = emptyList(), err = null) } }
+        Chips(listOf("1 variable", "2 variables", "Distribuciones"), tab) { tab = it; vm.stSet { st -> st.copy(two = it == 1, out = emptyList(), err = null) } }
         if (tab < 2) {
             Box(Modifier.fillMaxWidth().height(230.dp).background(Brand.surface, RoundedCornerShape(12.dp)).padding(6.dp)) {
                 LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -146,11 +146,11 @@ fun StatsScreen(vm: MainViewModel) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill("+10 rows") { vm.stSet { it.copy(rows = (it.rows + 10).coerceAtMost(200)) } }
-                Pill("Clear") { vm.stClear(); vm.stSet { it.copy(out = emptyList(), err = null) } }
-                Pill("Calculate", bg = Brand.accent) { vm.stCompute() }
+                Pill("+10 filas") { vm.stSet { it.copy(rows = (it.rows + 10).coerceAtMost(200)) } }
+                Pill("Borrar") { vm.stClear(); vm.stSet { it.copy(out = emptyList(), err = null) } }
+                Pill("Calcular", bg = Brand.accent) { vm.stCompute() }
             }
-            if (tab == 1) Chips(listOf("Linear", "Quadratic", "Cubic", "Log", "Exp", "Power"), s.reg) { vm.stSet { st -> st.copy(reg = it) } }
+            if (tab == 1) Chips(listOf("Lineal", "Cuadrática", "Cúbica", "Logarítmica", "Exponencial", "Potencial"), s.reg) { vm.stSet { st -> st.copy(reg = it) } }
             s.err?.let { BasicText(it, style = label(14, Brand.error)) }
             for ((k, v) in s.out) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BasicText(k, Modifier.width(110.dp), style = label(14, Brand.textDim))
@@ -159,15 +159,15 @@ fun StatsScreen(vm: MainViewModel) {
         } else {
             val d = Dists.all[s.dist]
             Chips(Dists.all.map { it.name }, s.dist) { vm.stSet { st -> st.copy(dist = it, dout = null) } }
-            Chips(listOf("pdf", "cdf", "inverse"), s.mode) { vm.stSet { st -> st.copy(mode = it, dout = null) } }
+            Chips(listOf("Densidad", "Acumulada", "Inversa"), s.mode) { vm.stSet { st -> st.copy(mode = it, dout = null) } }
             for ((i, p) in d.params.withIndex()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BasicText(p, Modifier.width(70.dp), style = label(14, Brand.textDim)); Fld(vm, "D:p$i", Modifier.weight(1f), fs = 16f, h = 40.dp)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BasicText(if (s.mode == 2) "p" else "x", Modifier.width(70.dp), style = label(14, Brand.textDim)); Fld(vm, "D:x", Modifier.weight(1f), fs = 16f, h = 40.dp)
             }
-            Pill("Calculate", bg = Brand.accent) { vm.distCompute() }
-            s.dout?.let { Caption("Result"); ResultRow(it, 22f) }
+            Pill("Calcular", bg = Brand.accent) { vm.distCompute() }
+            s.dout?.let { Caption("Resultado"); ResultRow(it, 22f) }
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -199,7 +199,7 @@ fun TableScreen(vm: MainViewModel) {
         val y = fn.f(x)
         if (!y.isNaN() && !y.isInfinite()) return vm.fmt(y)
         val z = NumEval.evalC(ex, Complex(x))
-        if (z.re.isNaN() || z.im.isNaN()) return "undefined"
+        if (z.re.isNaN() || z.im.isNaN()) return "indefinido"
         return vm.fmt(z.re) + (if (z.im >= 0) "+" else "-") + vm.fmt(abs(z.im)) + "i"
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -210,15 +210,15 @@ fun TableScreen(vm: MainViewModel) {
             BasicText("g(x)", Modifier.width(44.dp), style = label(14, Brand.series[1], true)); Fld(vm, "T:g", Modifier.weight(1f), fs = 17f, h = 40.dp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Caption("start"); Fld(vm, "T:s", Modifier.weight(1f), fs = 16f, h = 38.dp)
-            Caption("end"); Fld(vm, "T:e", Modifier.weight(1f), fs = 16f, h = 38.dp)
-            Caption("step"); Fld(vm, "T:d", Modifier.weight(1f), fs = 16f, h = 38.dp)
+            Caption("inicio"); Fld(vm, "T:s", Modifier.weight(1f), fs = 16f, h = 38.dp)
+            Caption("fin"); Fld(vm, "T:e", Modifier.weight(1f), fs = 16f, h = 38.dp)
+            Caption("paso"); Fld(vm, "T:d", Modifier.weight(1f), fs = 16f, h = 38.dp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Pill("To Graph") { vm.tableToGraph() } }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Pill("Ver gráfica") { vm.tableToGraph() } }
         Row(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)).padding(8.dp)) {
             BasicText("x", Modifier.weight(1f), style = label(13, Brand.textDim, true)); BasicText("f(x)", Modifier.weight(1f), style = label(13, Brand.series[0], true)); BasicText("g(x)", Modifier.weight(1f), style = label(13, Brand.series[1], true))
         }
-        if (count == 0) BasicText("Enter a valid start, end and step.", style = label(13, Brand.error))
+        if (count == 0) BasicText("Escribe un inicio, fin y paso válidos.", style = label(13, Brand.error))
         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             items(count) { i ->
                 val x = s0!! + i * d0!!
@@ -260,14 +260,14 @@ fun GraphScreen(vm: MainViewModel) {
     val tm = rememberTextMeasurer(cacheSize = 64)
     val sel = gv.sel
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Chips(listOf("f1", "f2", "f3", "f4", "param"), sel) { gv.sel = it; vm.focusOn(if (it < 4) "G:$it" else "G:px") }
+        Chips(listOf("f1", "f2", "f3", "f4", "paramétrica"), sel) { gv.sel = it; vm.focusOn(if (it < 4) "G:$it" else "G:px") }
         if (sel < 4) Fld(vm, "G:$sel", Modifier.fillMaxWidth(), fs = 17f, h = 40.dp)
         else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Caption("x(t)"); Fld(vm, "G:px", Modifier.weight(1f), fs = 16f, h = 38.dp); Caption("y(t)"); Fld(vm, "G:py", Modifier.weight(1f), fs = 16f, h = 38.dp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Caption("t from"); Fld(vm, "G:t0", Modifier.weight(1f), fs = 16f, h = 38.dp); Caption("to"); Fld(vm, "G:t1", Modifier.weight(1f), fs = 16f, h = 38.dp)
+                Caption("t desde"); Fld(vm, "G:t0", Modifier.weight(1f), fs = 16f, h = 38.dp); Caption("hasta"); Fld(vm, "G:t1", Modifier.weight(1f), fs = 16f, h = 38.dp)
             }
         }
         Canvas(
@@ -349,16 +349,20 @@ fun GraphScreen(vm: MainViewModel) {
             val y = (if (sel < 4) fns[sel] else null)?.f(tv.toDouble())
             "x = ${vm.fmt(tv.toDouble())}" + (if (y != null) ",  y = ${vm.fmt(y)}" else "")
         }
-        BasicText(if (gv.info.isNotEmpty()) gv.info else readout.ifEmpty { "Tap the graph to trace. Pinch to zoom, drag to pan." }, style = label(13, if (gv.info.isNotEmpty()) Brand.text else Brand.textDim), maxLines = 2)
+        BasicText(if (gv.info.isNotEmpty()) gv.info else readout.ifEmpty { "Toca la gráfica para recorrerla. Pellizca para zoom y arrastra para moverte." }, style = label(13, if (gv.info.isNotEmpty()) Brand.text else Brand.textDim), maxLines = 2)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Pill("Zero") { vm.graphAnalyze(0) }; Pill("Min") { vm.graphAnalyze(1) }; Pill("Max") { vm.graphAnalyze(2) }
-            Pill("Intersect") { vm.graphAnalyze(3) }; Pill("Mark A") { gv.anchor = gv.trace }; Pill("Integral") { vm.graphAnalyze(4) }
-            Pill("Table") { vm.graphToTable() }
-            Pill("Reset") { gv.cx = 0f; gv.cy = 0f; gv.sx = 40f; gv.sy = 40f; gv.trace = Float.NaN; gv.anchor = Float.NaN; gv.info = "" }
+            Pill("Raíz") { vm.graphAnalyze(0) }; Pill("Mín") { vm.graphAnalyze(1) }; Pill("Máx") { vm.graphAnalyze(2) }
+            Pill("Intersección") { vm.graphAnalyze(3) }; Pill("Marcar A") { gv.anchor = gv.trace }; Pill("Integral") { vm.graphAnalyze(4) }
+            Pill("Tabla") { vm.graphToTable() }
+            Pill("Reiniciar") { gv.cx = 0f; gv.cy = 0f; gv.sx = 40f; gv.sy = 40f; gv.trace = Float.NaN; gv.anchor = Float.NaN; gv.info = "" }
         }
         Spacer(Modifier.height(2.dp))
     }
 }
+
+private fun appVersion(): String = try {
+    Services.app.packageManager.getPackageInfo(Services.app.packageName, 0).versionName ?: ""
+} catch (_: Exception) { "" }
 
 private fun fmtTick(v: Float): String {
     val r = if (abs(v) >= 1e5f || (abs(v) < 1e-3f && v != 0f)) String.format("%.1e", v) else String.format("%.4f", v).trimEnd('0').trimEnd('.')
@@ -370,7 +374,7 @@ private fun fmtTick(v: Float): String {
 fun ProgramsScreen(vm: MainViewModel) {
     val s by vm.pg.collectAsState()
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Chips(s.list.map { it.name } + "+ New", if (s.cur < s.list.size) s.cur else s.list.size) { if (it >= s.list.size) vm.pgNew() else vm.pgSelect(it) }
+        Chips(s.list.map { it.name } + "+ Nuevo", if (s.cur < s.list.size) s.cur else s.list.size) { if (it >= s.list.size) vm.pgNew() else vm.pgSelect(it) }
         Box(Modifier.fillMaxWidth().height(40.dp).background(Brand.surface, RoundedCornerShape(10.dp)).border(1.dp, Brand.line, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
             BasicTextField(s.name, { vm.pgEdit(it, s.src) }, textStyle = label(15, Brand.text, true), singleLine = true, cursorBrush = SolidColor(Brand.accentHi), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
         }
@@ -380,10 +384,10 @@ fun ProgramsScreen(vm: MainViewModel) {
                 textStyle = TextStyle(color = Brand.text, fontFamily = Brand.mono, fontSize = 14.sp), cursorBrush = SolidColor(Brand.accentHi),
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)
             )
-            if (s.src.isEmpty()) BasicText("Write Giac code here, or pick a template.", style = label(14, Brand.textDim))
+            if (s.src.isEmpty()) BasicText("Escribe código de Giac aquí o elige una plantilla.", style = label(14, Brand.textDim))
         }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Pill("Run", bg = Brand.accent) { vm.pgRun() }; Pill("Save") { vm.pgSave() }; Pill("Delete") { vm.pgDelete() }
+            Pill("Ejecutar", bg = Brand.accent) { vm.pgRun() }; Pill("Guardar") { vm.pgSave() }; Pill("Borrar") { vm.pgDelete() }
             for ((i, t) in Templates.programs.withIndex()) Pill(t.first) { vm.pgTemplate(i) }
         }
         if (s.out.isNotEmpty()) Box(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(10.dp)).padding(10.dp)) {
@@ -402,7 +406,7 @@ fun UnitsScreen(vm: MainViewModel) {
     var to by remember { mutableIntStateOf(1) }
     var value by remember { mutableStateOf("1") }
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Chips(listOf("Units", "Constants"), tab) { tab = it }
+        Chips(listOf("Unidades", "Constantes"), tab) { tab = it }
         if (tab == 0) {
             val c = Units.cats[cat]
             Chips(Units.cats.map { it.name }, cat) { cat = it; from = 0; to = 1 }
@@ -410,11 +414,11 @@ fun UnitsScreen(vm: MainViewModel) {
                 BasicTextField(value, { value = it.filter { ch -> ch.isDigit() || ch in ".-" } }, textStyle = label(18, Brand.text), singleLine = true, cursorBrush = SolidColor(Brand.accentHi),
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
             }
-            Caption("From")
+            Caption("De")
             Chips(c.units.map { it.name }, from) { from = it }
-            Caption("To")
+            Caption("A")
             Chips(c.units.map { it.name }, to) { to = it }
-            Pill("Convert in Home", bg = Brand.accent) {
+            Pill("Convertir en Inicio", bg = Brand.accent) {
                 val v = value.ifBlank { "0" }
                 vm.sendExpr(Units.convert(v, c, c.units[from], c.units[to]), true)
             }
@@ -442,7 +446,7 @@ fun GuideScreen(vm: MainViewModel) {
     val list = remember(q) { Guide.search(q) }
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(46.dp).background(Brand.surface, RoundedCornerShape(12.dp)).border(1.dp, Brand.line, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-            if (q.isEmpty()) BasicText("Search the guide", style = label(16, Brand.textDim))
+            if (q.isEmpty()) BasicText("Busca una tarea: ecuación de grado 2, parábola...", style = label(16, Brand.textDim))
             BasicTextField(q, { q = it; open = -1 }, Modifier.fillMaxWidth(), textStyle = label(16, Brand.text), singleLine = true, cursorBrush = SolidColor(Brand.accentHi))
         }
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -453,9 +457,9 @@ fun GuideScreen(vm: MainViewModel) {
                     BasicText(e.goal, style = label(13, Brand.textDim))
                     if (isOpen) {
                         e.steps.forEachIndexed { k, st -> BasicText("${k + 1}. $st", style = label(14, Brand.text)) }
-                        Caption("Example")
+                        Caption("Ejemplo")
                         ResultRow(e.example, 18f)
-                        Pill("Insert example", bg = Brand.accent) { vm.sendExpr(e.example, false) }
+                        Pill("Llevar a Inicio", bg = Brand.accent) { vm.sendExpr(e.example, false) }
                     }
                 }
             }
@@ -479,26 +483,27 @@ fun SettingsScreen(vm: MainViewModel) {
     val s by vm.settings.collectAsState()
     val sigs = listOf(0, 3, 4, 5, 6, 8, 10, 12)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Caption("Angle unit")
-        Chips(listOf("Degrees", "Radians", "Grads"), s.angle) { vm.setSettings(s.copy(angle = it)) }
-        Caption("Number base")
+        Caption("Unidad de ángulo")
+        Chips(listOf("Sexagesimal (°)", "Radianes", "Centesimal (g)"), s.angle) { vm.setSettings(s.copy(angle = it)) }
+        Caption("Base numérica")
         Chips(listOf("Dec", "Bin", "Oct", "Hex"), listOf(10, 2, 8, 16).indexOf(s.base)) { vm.setSettings(s.copy(base = listOf(10, 2, 8, 16)[it])) }
-        Caption("Notation")
-        Chips(listOf("Normal", "Engineering (ENG)"), if (s.eng) 1 else 0) { vm.setSettings(s.copy(eng = it == 1)) }
-        Caption("Significant figures")
-        Chips(sigs.map { if (it == 0) "Auto" else "$it" }, sigs.indexOf(s.sig).coerceAtLeast(0)) { vm.setSettings(s.copy(sig = sigs[it])) }
-        Caption("Calculation timeout")
+        Caption("Notación")
+        Chips(listOf("Normal", "Ingeniería (ENG)"), if (s.eng) 1 else 0) { vm.setSettings(s.copy(eng = it == 1)) }
+        Caption("Cifras significativas")
+        Chips(sigs.map { if (it == 0) "Automático" else "$it" }, sigs.indexOf(s.sig).coerceAtLeast(0)) { vm.setSettings(s.copy(sig = sigs[it])) }
+        Caption("Tiempo máximo de cálculo")
         Chips(listOf("10 s", "30 s", "60 s"), listOf(10, 30, 60).indexOf(s.timeout).coerceAtLeast(0)) { vm.setSettings(s.copy(timeout = listOf(10, 30, 60)[it])) }
-        Toggle("Mixed fractions", s.mixed) { vm.setSettings(s.copy(mixed = it)) }
-        Toggle("Haptic feedback", s.haptics) { vm.setSettings(s.copy(haptics = it)) }
+        Toggle("Fracciones mixtas", s.mixed) { vm.setSettings(s.copy(mixed = it)) }
+        Toggle("Vibración al pulsar", s.haptics) { vm.setSettings(s.copy(haptics = it)) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill("Clear history") { vm.clearHistory() }
-            Pill("Clear stored variables") { vm.clearDefs() }
+            Pill("Borrar historial") { vm.clearHistory() }
+            Pill("Borrar variables") { vm.clearDefs() }
         }
         Spacer(Modifier.height(10.dp))
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Image(painterResource(R.drawable.ic_mark), null, Modifier.size(width = 96.dp, height = 57.dp))
-            BasicText("ANGELINA 1.0", style = label(15, Brand.text, true))
+            BasicText("ANGELINA " + appVersion(), style = label(15, Brand.text, true))
+            BasicText("Creado por Redy Mamani · DIGITALMINDS", style = label(12, Brand.textDim))
             Image(painterResource(R.drawable.splash_brand), null, Modifier.size(width = 200.dp, height = 56.dp))
         }
         Spacer(Modifier.height(16.dp))
