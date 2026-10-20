@@ -41,7 +41,7 @@ import java.util.Date
 import java.util.Locale
 
 private val ok = Color(0xFF3DDC97)
-private fun letter(i: Int) = "ABCDE"[i].toString()
+private fun letter(i: Int) = "ABCD"[i].toString()
 private fun mmss(s: Long) = "%d:%02d".format(s / 60, s % 60)
 private fun stars(l: Int) = "★".repeat(l) + "☆".repeat(3 - l)
 
@@ -68,28 +68,45 @@ private fun Bar(frac: Float, color: Color = Brand.accentHi) {
 private fun BecaHome(vm: MainViewModel) {
     val st by vm.becaStats.collectAsState()
     var limit by remember { mutableIntStateOf(1) }
+    var level by remember { mutableIntStateOf(0) }
     val limits = listOf(0, 45, 60, 90)
-    val total = Beca.all.size
-    val done = Beca.all.count { (st.rec[it.id]?.tries ?: 0) > 0 }
-    val good = Beca.all.count { st.rec[it.id]?.last == true }
+    val total = Beca.all.size + Beca.exams.size
+    val every = Beca.all + Beca.exams
+    val done = every.count { (st.rec[it.id]?.tries ?: 0) > 0 }
+    val good = every.count { st.rec[it.id]?.last == true }
     val wrong = st.rec.count { !it.value.last && Beca.byId(it.key) != null }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         BasicText("Razonamiento Matemático", style = label(20, Brand.text, true))
-        BasicText("$total problemas originales con solución explicada. Cada respuesta está comprobada con Giac.", style = label(13, Brand.textDim))
+        BasicText("${Beca.all.size} problemas propios y ${Beca.exams.size} preguntas de exámenes oficiales, con solución explicada.", style = label(13, Brand.textDim))
         Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(14.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row { BasicText("Resueltos: $done de $total", Modifier.weight(1f), style = label(14, Brand.text)); BasicText("Bien la última vez: $good", style = label(14, ok)) }
             Bar(done / total.toFloat())
         }
         Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(14.dp)).border(1.dp, Brand.accent, RoundedCornerShape(14.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             BasicText("Simulacro", style = label(17, Brand.text, true))
-            BasicText("${Beca.SIM_SIZE} preguntas de todos los temas, en orden aleatorio. Se corrige al terminar.", style = label(13, Brand.textDim))
+            BasicText("${Beca.SIM_SIZE} preguntas de todos los temas (propias y oficiales), en orden aleatorio. Se corrige al terminar.", style = label(13, Brand.textDim))
+            Chips(listOf("Mixto", "Nivel 1 ★", "Nivel 2 ★★", "Nivel 3 ★★★"), level) { level = it }
             Chips(limits.map { if (it == 0) "Sin límite" else "$it min" }, limit) { limit = it }
-            Pill("Empezar simulacro", Modifier.fillMaxWidth(), bg = Brand.accent) { vm.becaSim(limits[limit]) }
+            Pill("Empezar simulacro", Modifier.fillMaxWidth(), bg = Brand.accent) { vm.becaSim(limits[limit], level) }
         }
+        Caption("Exámenes oficiales anteriores (solo matemática)")
+        for (y in Beca.years) {
+            val ps = Beca.exam(y)
+            val g = ps.count { st.rec[it.id]?.last == true }
+            Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row { BasicText("Examen $y", Modifier.weight(1f), style = label(16, Brand.text, true)); BasicText("$g / ${ps.size} bien", style = label(13, Brand.textDim)) }
+                Bar(g / ps.size.toFloat(), ok)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("Practicar", Modifier.weight(1f)) { vm.becaExam(y, false, 0) }
+                    Pill("Como examen", Modifier.weight(1f), bg = Brand.keyOp, fg = Brand.orange) { vm.becaExam(y, true, limits[limit]) }
+                }
+            }
+        }
+        BasicText("Claves oficiales verificadas una por una. Donde el enunciado oficial tiene un problema, la solución lo advierte.", style = label(11, Brand.textDim))
         if (wrong > 0) Pill("Repasar mis errores ($wrong)", Modifier.fillMaxWidth(), bg = Brand.keyOp, fg = Brand.orange) { vm.becaMistakes() }
         Caption("Practicar por tema (se corrige al instante)")
         for (t in Beca.topics) {
-            val ps = Beca.all.filter { it.topic == t.id }
+            val ps = Beca.ofTopic(t.id)
             val g = ps.count { st.rec[it.id]?.last == true }
             Column(
                 Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).pointerInput(t.id) { detectTapGestures { vm.becaTopic(t.id) } }.padding(12.dp),
@@ -133,7 +150,7 @@ private fun BecaQuestion(vm: MainViewModel, r: BecaRun) {
             Pill("←", bg = Brand.keyNum) { vm.becaBack() }
             Column(Modifier.weight(1f)) {
                 BasicText("${r.title} · ${r.cur + 1} de ${r.ids.size}", style = label(14, Brand.text, true))
-                BasicText(Beca.topicName(p.topic) + "  " + stars(p.level), style = label(12, Brand.textDim))
+                BasicText((if (p.year > 0) "Examen oficial ${p.year} · " else "") + Beca.topicName(p.topic) + "  " + stars(p.level), style = label(12, Brand.textDim))
             }
             if (r.sim && !r.finished) {
                 val el = (now - r.startMs) / 1000
@@ -142,8 +159,9 @@ private fun BecaQuestion(vm: MainViewModel, r: BecaRun) {
             }
         }
         BasicText(p.text, style = TextStyle(color = Brand.text, fontFamily = Brand.math, fontSize = 17.sp))
+        if (p.table.isNotEmpty()) TableView(p.table)
         if (p.fig.isNotEmpty()) Box(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(10.dp)).padding(6.dp)) { FigureView(p.fig) }
-        for (i in 0 until 5) {
+        for (i in p.opts.indices) {
             val isC = i == p.correct
             val border = when {
                 reveal && isC -> ok
@@ -175,6 +193,7 @@ private fun BecaQuestion(vm: MainViewModel, r: BecaRun) {
             Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Caption("Solución")
                 p.steps.forEachIndexed { k, s -> BasicText("${k + 1}. $s", style = label(14, Brand.text)) }
+                if (p.note.isNotEmpty()) BasicText("⚠ " + p.note, style = label(13, Brand.orange))
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (p.calc.isNotEmpty()) Pill("Probar en la calculadora", bg = Brand.keyOp, fg = Brand.blue) { vm.sendExpr(p.calc, true) }

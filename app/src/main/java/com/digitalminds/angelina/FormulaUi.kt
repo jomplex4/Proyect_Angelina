@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -102,6 +103,49 @@ private fun FormulaLine(f: Formula, fs: Float) {
     }
 }
 
+/** Cuadro de las 6 razones de todos los notables; tocar una fila muestra su triángulo y los valores reales. */
+@Composable
+private fun NotablesPanel() {
+    var sel by remember { mutableStateOf("37") }
+    Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        BasicText("Cuadro de razones trigonométricas", style = label(16, Brand.text, true))
+        BasicText("★ exacto   ≈ aproximado (se usa en exámenes)   ·   Toca un ángulo para ver su triángulo", style = label(11, Brand.textDim))
+        Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            Column {
+                Row(Modifier.background(Brand.keyOp)) {
+                    Box(Modifier.width(64.dp).padding(6.dp)) { BasicText("Ángulo", style = label(12, Brand.violet, true)) }
+                    for (n in Notables.names) Box(Modifier.width(84.dp).padding(6.dp), contentAlignment = Alignment.Center) { BasicText(n, style = label(13, Brand.violet, true)) }
+                }
+                for (r in Notables.rows) {
+                    val on = r.angle == sel
+                    Row(
+                        Modifier.background(if (on) Brand.keyOp else Brand.surface).pointerInput(r.angle) { detectTapGestures { sel = r.angle } },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.width(64.dp).padding(6.dp)) {
+                            BasicText(r.angle.replace('.', ',') + "° " + if (r.exact) "★" else "≈", style = label(13, if (r.exact) Brand.blue else Brand.orange, true))
+                        }
+                        for (x in r.r) Box(Modifier.width(84.dp).height(44.dp).padding(2.dp), contentAlignment = Alignment.Center) {
+                            val row = remember(x) { Parse.row(x) ?: Row(listOf(Str(x))) }
+                            MathView(row, 14f)
+                        }
+                    }
+                }
+            }
+        }
+        val r = Notables.rows.first { it.angle == sel }
+        val t = Notables.tris.first { it.small == r.angle || it.big == r.angle }
+        Box(Modifier.fillMaxWidth().background(Brand.bg, RoundedCornerShape(10.dp)).padding(6.dp)) { FigureView(r.fig) }
+        BasicText("Triángulo de ${t.small.replace('.', ',')}° y ${t.big.replace('.', ',')}°: lados ${t.sides}. " +
+            (if (t.exact) "Es exacto." else "Es aproximado: sirve para exámenes, pero no es el valor real."), style = label(13, Brand.text))
+        BasicText("El ángulo menor mira al cateto menor. CO CA CO CA HIP HIP / HIP HIP CA CO CA CO.", style = label(12, Brand.textDim))
+        if (!r.exact) {
+            Caption("Valor real de ${r.angle.replace('.', ',')}° (con calculadora)")
+            for (i in 0..5) BasicText("${Notables.names[i]} ${r.angle.replace('.', ',')}° = " + "%.4f".format(r.real(i)).replace('.', ','), style = label(13, Brand.textDim))
+        }
+    }
+}
+
 /** Formulario offline: secciones, buscador, figuras dibujadas y un ejemplo comprobado por fórmula. */
 @Composable
 fun FormulasScreen(vm: MainViewModel) {
@@ -119,6 +163,7 @@ fun FormulasScreen(vm: MainViewModel) {
         if (q.isBlank()) Chips(Formulas.secs.map { it.name }, sec) { sec = it; open = null }
         else BasicText("${list.size} resultados en todas las secciones", style = label(12, Brand.textDim))
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (q.isBlank() && Formulas.secs[sec].id == "notables") item(key = "cuadro") { NotablesPanel() }
             items(list, key = { it.sec + "/" + it.title }) { f ->
                 val isOpen = open == f.title
                 Column(
@@ -127,10 +172,13 @@ fun FormulasScreen(vm: MainViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     BasicText(f.title, style = label(15, Brand.textDim, true))
-                    FormulaLine(f, 20f)
+                    FormulaLine(f, if (f.isText) 17f else 20f)
+                    // Leyenda: qué significa cada letra, siempre visible.
+                    Column(Modifier.fillMaxWidth().background(Brand.bg, RoundedCornerShape(8.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        for (l in f.legend) BasicText("• " + l, style = label(13, Brand.text))
+                    }
                     if (isOpen) {
                         if (f.fig.isNotEmpty()) Box(Modifier.fillMaxWidth().background(Brand.bg, RoundedCornerShape(10.dp)).padding(6.dp)) { FigureView(f.fig) }
-                        BasicText(f.vars, style = label(14, Brand.text))
                         f.ex?.let { e ->
                             Caption("Ejemplo")
                             BasicText(f.exText, style = label(14, Brand.text))

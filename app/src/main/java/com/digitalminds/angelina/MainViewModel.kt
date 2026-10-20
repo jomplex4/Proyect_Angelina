@@ -132,8 +132,10 @@ class MainViewModel : ViewModel() {
         go(Screen.Beca)
     }
 
-    fun becaTopic(t: String) = becaStart(Beca.all.filter { it.topic == t }.sortedBy { it.level }.map { it.id }, false, Beca.topicName(t))
-    fun becaSim(limitMin: Int) = becaStart(Beca.simulacro(System.currentTimeMillis()), true, "Simulacro", limitMin)
+    fun becaTopic(t: String) = becaStart(Beca.ofTopic(t).map { it.id }, false, Beca.topicName(t))
+    fun becaSim(limitMin: Int, level: Int = 0) = becaStart(Beca.simulacro(System.currentTimeMillis(), level), true, if (level == 0) "Simulacro" else "Simulacro nivel $level", limitMin)
+    /** Examen oficial de un año: como práctica (se corrige al instante) o como examen (al terminar). */
+    fun becaExam(year: Int, asExam: Boolean, limitMin: Int) = becaStart(Beca.exam(year).map { it.id }, asExam, "Examen $year", if (asExam) limitMin else 0)
     fun becaMistakes() = becaStart(becaStats.value.rec.filter { !it.value.last && Beca.byId(it.key) != null }.keys.toList(), false, "Repaso de errores")
 
     private fun record(id: String, ok: Boolean) {

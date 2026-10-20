@@ -55,7 +55,7 @@ private fun TextInput(vm: MainViewModel, id: String) {
 
 /** Tabla de frecuencias dibujada (la primera fila son los encabezados). */
 @Composable
-private fun TableView(t: List<List<String>>) {
+fun TableView(t: List<List<String>>) {
     Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
         Column(Modifier.background(Brand.surface, RoundedCornerShape(10.dp)).border(1.dp, Brand.line, RoundedCornerShape(10.dp)).padding(6.dp)) {
             t.forEachIndexed { r, row ->

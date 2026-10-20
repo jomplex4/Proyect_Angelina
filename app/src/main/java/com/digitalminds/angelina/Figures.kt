@@ -380,6 +380,150 @@ object Figs {
         } }
     )
 
-    fun get(id: String): List<Pr>? = defs[id]?.invoke()
-    val ids: Set<String> get() = defs.keys
+    /** Figuras redibujadas de los exámenes oficiales (no son copias de imágenes). */
+    private val exDefs: Map<String, () -> List<Pr>> = mapOf(
+        "ex23_balanza" to { fig {
+            for ((ox, left, right) in listOf(Triple(25f, "2 cilindros", "2 cubos + 1 esfera"), Triple(75f, "3 cilindros + 1 cubo", "2 esferas"))) {
+                ln(ox, 54f, ox, 22f); ln(ox - 8, 54f, ox + 8, 54f); ln(ox - 20, 22f, ox + 20, 22f, w = 1.4f)
+                ln(ox - 20, 22f, ox - 20, 34f, 5); ln(ox + 20, 22f, ox + 20, 34f, 5)
+                ln(ox - 24, 34f, ox - 16, 34f, 4, w = 1.6f); ln(ox + 16, 34f, ox + 24, 34f, 4, w = 1.6f)
+                t(ox, 59f, left + " = " + right, 0, 0.55f)
+            }
+            t(50f, 8f, "Las dos balanzas están en equilibrio · cilindro = 1 kg", 0, 0.7f)
+        } },
+        "ex23_cuadtri" to { fig {
+            tri(20f, 54f, 84f, 54f, 20f, 6f); ra(20f, 54f, 84f, 54f, 20f, 6f)
+            val l = 64f * 48f / (64f + 48f)
+            poly(20f, 54f, 20f + l, 54f, 20f + l, 54f - l, 20f, 54f - l, c = 2)
+            t(10f, 30f, "12", 2); t(52f, 58f, "16", 2); t(58f, 26f, "20", 2); t(20f + l / 2, 54f - l / 2, "L", 1)
+        } },
+        "ex23_altura" to { fig {
+            tri(10f, 52f, 90f, 52f, 30f, 12f); ln(30f, 12f, 30f, 52f, 1, dash = true); ra(30f, 52f, 90f, 52f, 30f, 12f)
+            t(6f, 55f, "B"); t(94f, 55f, "C"); t(30f, 8f, "A"); t(30f, 57f, "D"); t(20f, 57f, "2", 2); t(60f, 57f, "6", 2)
+        } },
+        "ex23_cochera" to { fig {
+            poly(20f, 4f, 80f, 4f, 80f, 56f, 20f, 56f); poly(20f, 4f, 80f, 4f, 80f, 56f, 72f, 56f, 72f, 12f, 28f, 12f, 28f, 56f, 20f, 56f, c = 5, fill = true)
+            poly(28f, 12f, 72f, 12f, 72f, 56f, 28f, 56f, c = 2); t(50f, 32f, "Cochera", 2); t(50f, 52f, "Entrada / Salida", 5, 0.8f)
+            t(24f, 59f, "2", 4, 0.8f); t(76f, 59f, "2", 4, 0.8f); t(50f, 8f, "2", 4, 0.8f); t(16f, 6f, "B"); t(84f, 6f, "C"); t(16f, 56f, "A"); t(84f, 56f, "D")
+        } },
+        "ex23_corona" to { fig {
+            ci(50f, 30f, 26f); ci(50f, 30f, 14f, 2); dot(50f, 30f, 0)
+            val y = 30f - 14f; val hx = sqrt(26f * 26f - 14f * 14f)
+            ln(50f - hx, y, 50f + hx, y, 1); ln(50f, 30f, 50f, y, 5, dash = true); t(50f - hx - 3, y - 2, "A"); t(50f + hx + 3, y - 2, "B"); t(46f, 33f, "O", 5)
+        } },
+        "ex23_anpd" to { fig {
+            val s = 12f
+            fun X(x: Float) = 26f + x * s
+            fun Y(y: Float) = 54f - y * s
+            poly(X(0f), Y(0f), X(4f), Y(0f), X(4f), Y(4f), X(0f), Y(4f))
+            ln(X(0f), Y(0f), X(4f), Y(2f), 5); ln(X(2f), Y(1f), X(4f), Y(4f), 5)
+            poly(X(0f), Y(0f), X(2f), Y(1f), X(3f), Y(2.5f), X(0f), Y(4f), c = 1)
+            t(X(0f) - 3, Y(0f) + 2, "A"); t(X(4f) + 3, Y(0f) + 2, "B"); t(X(4f) + 3, Y(4f) - 2, "C"); t(X(0f) - 3, Y(4f) - 2, "D")
+            t(X(4f) + 4, Y(2f), "M", 2); t(X(2f), Y(1f) + 4, "N", 2); t(X(3f) + 3, Y(2.5f) - 3, "P", 2)
+        } },
+        "ex23_zigzag" to { fig {
+            ln(6f, 8f, 94f, 8f); ln(6f, 52f, 94f, 52f); t(96f, 5f, "L₁", 5, 0.8f); t(96f, 55f, "L₂", 5, 0.8f)
+            ln(38f, 8f, 22f, 52f, 2); ln(32f, 24.5f, 80f, 8f, 1); ln(32f, 24.5f, 82f, 52f, 1); ln(80f, 8f, 66f, 30f); ln(66f, 30f, 82f, 52f)
+            dot(32f, 24.5f, 0); ra(66f, 30f, 80f, 8f, 82f, 52f)
+            t(38f, 4f, "N"); t(80f, 4f, "C"); t(22f, 57f, "M"); t(82f, 57f, "A"); t(27f, 24f, "B"); t(61f, 30f, "Q"); t(40f, 20f, "40°", 1, 0.8f)
+        } },
+        "ex23_mediana" to { fig {
+            tri(8f, 52f, 92f, 52f, 34f, 14f); ln(34f, 14f, 50f, 52f, 2); ln(34f, 14f, 22f - 4f, -2f + 6f, 5, dash = true)
+            t(5f, 55f, "A"); t(95f, 55f, "C"); t(34f, 9f, "B"); t(50f, 57f, "M", 2)
+            t(15f, 49f, "α", 1); t(46f, 47f, "45°", 4, 0.8f); t(40f, 22f, "α", 1); t(39f, 12f, "45°", 4, 0.8f); t(82f, 49f, "x", 3)
+            t(28f, 40f, "Niños", 5, 0.75f); t(60f, 40f, "Adultos", 5, 0.75f)
+        } },
+        "ex24_temp" to { fig {
+            ln(8f, 54f, 94f, 54f); ln(8f, 54f, 8f, 4f)
+            for (k in 0..7) { val y = 54f - k * 7f; ln(8f, y, 94f, y, 5, dash = true, w = 0.4f); t(4f, y, "${k * 5}", 5, 0.6f) }
+            for (d in listOf(5, 10, 15, 20, 25, 30)) t(8f + d * 2.8f, 58f, "$d", 5, 0.6f)
+            val pts = listOf(1 to 10f, 2 to 17f, 3 to 20.5f, 5 to 21.7f, 7 to 21f, 10 to 18f, 11 to 18f, 13 to 19.5f, 15 to 22f, 18 to 25.5f, 20 to 29f, 22 to 31.3f, 23 to 31f, 25 to 26f, 27 to 14f, 28 to 6f)
+            for (i in 0 until pts.size - 1) ln(8f + pts[i].first * 2.8f, 54f - pts[i].second * 1.4f, 8f + pts[i + 1].first * 2.8f, 54f - pts[i + 1].second * 1.4f, 1, w = 1.3f)
+            ln(8f, 54f - 20 * 1.4f, 94f, 54f - 20 * 1.4f, 2, dash = true); t(80f, 54f - 20 * 1.4f - 3, "20 °C", 2, 0.75f); t(50f, 3f, "°C por día de febrero", 0, 0.8f)
+        } },
+        "ex24_montana" to { fig {
+            poly(55f, 54f, 76f, 8f, 98f, 54f, c = 5); ln(76f, 8f, 76f, 54f, 1, dash = true)
+            ln(10f, 50f, 76f, 8f, 2); ln(32f, 50f, 76f, 8f, 2); ln(10f, 50f, 76f, 50f, 5, dash = true)
+            ln(10f, 50f, 10f, 56f); ln(32f, 50f, 32f, 56f); t(10f, 59f, "A"); t(32f, 59f, "B"); t(21f, 47f, "140", 0, 0.75f)
+            t(18f, 46f, "64°", 4, 0.7f); t(39f, 46f, "76°", 4, 0.7f); t(82f, 30f, "h", 1); t(88f, 57f, "1,8 m", 5, 0.7f)
+        } },
+        "ex24_llanta" to { fig {
+            ci(50f, 30f, 26f, 5); ci(50f, 30f, 24f); dot(50f, 30f, 0)
+            val p = listOf(-90.0, -45.0, 0.0, 45.0).map { pt(50f, 30f, 24f, it) }
+            for (i in 0 until 3) ln(p[i].first, p[i].second, p[i + 1].first, p[i + 1].second, 1, w = 1.6f)
+            ln(50f, 30f, p[0].first, p[0].second, 5); ln(50f, 30f, p[1].first, p[1].second, 5)
+            arc(50f, 30f, p[0].first, p[0].second, p[1].first, p[1].second, 7f, 4); arc(p[1].first, p[1].second, p[0].first, p[0].second, p[2].first, p[2].second, 5f, 2)
+            t(56f, 20f, "θ", 4); t(p[1].first - 6, p[1].second + 2, "α", 2); t(46f, 34f, "O", 5)
+        } },
+        "ex24_gas" to { fig {
+            val tot = listOf(83, 145, 172, 259, 328, 336, 699, 1033, 1144, 1180); val cam = listOf(19, 73, 103, 189, 254, 273, 640, 972, 1083, 1139)
+            ln(6f, 52f, 96f, 52f)
+            for (i in 0 until 10) {
+                val x = 8f + i * 8.8f
+                val hc = cam[i] / 1200f * 42f; val ht = tot[i] / 1200f * 42f
+                poly(x, 52f, x + 3.5f, 52f, x + 3.5f, 52f - hc, x, 52f - hc, c = 2, fill = true)
+                poly(x + 3.7f, 52f, x + 7.2f, 52f, x + 7.2f, 52f - ht, x + 3.7f, 52f - ht, c = 5, fill = true)
+                t(x + 3.6f, 56f, "${(2004 + i) % 100}", 5, 0.55f)
+            }
+            t(30f, 5f, "Camisea", 2, 0.75f); t(60f, 5f, "Total país", 5, 0.75f)
+        } },
+        "ex24_graficas" to { fig {
+            fun panel(ox: Float, oy: Float, lab: String, f: (Float) -> Float, t0: Float, t1: Float, c: Int) {
+                ln(ox, oy, ox + 40, oy, 5); ln(ox + 4, oy + 3, ox + 4, oy - 24, 5); t(ox - 3, oy - 22, lab, 0, 0.8f)
+                var t = t0
+                while (t < t1 - 0.01f) { val u = minOf(t + 0.1f, t1); ln(ox + 4 + t * 7, oy - f(t) * 3.5f, ox + 4 + u * 7, oy - f(u) * 3.5f, c, w = 1.2f); t = u }
+            }
+            panel(4f, 28f, "A", { 1 + 10 * it - 5 * it * it }, 0f, 2.095f, 1)
+            panel(54f, 28f, "B", { -5 * (it - 1) * (it - 3) / 1f }, 1f, 3.3f, 2)
+            panel(4f, 58f, "C", { 5 * it * (2 - it) }, 0f, 2f, 2)
+            panel(54f, 58f, "D", { 1 + 10 * it - 5 * it * it }, 0f, 2.3f, 2)
+        } },
+        "ex24_piscinas" to { fig {
+            ci(36f, 32f, 24f, 5); ci(72f, 32f, 12f, 5); dot(36f, 32f, 0); dot(72f, 32f, 0)
+            ln(12f, 32f, 72f, 32f, 1, w = 1.6f); ln(72f, 32f, 80.5f, 23.5f, 2); t(80f, 20f, "R", 2); t(24f, 28f, "2R", 4, 0.8f)
+        } },
+        "ex25_pelota" to { fig {
+            axes(10f, 54f, x0 = 6f, x1 = 92f, y0 = 3f, y1 = 57f)
+            var t = 0f
+            while (t < 6f) { val u = t + 0.1f; ln(10f + t * 12, 54f - (6 * t - t * t) * 5.5f, 10f + u * 12, 54f - (6 * u - u * u) * 5.5f, 1, w = 1.4f); t = u }
+            ln(10f, 54f - 8 * 5.5f, 92f, 54f - 8 * 5.5f, 2, dash = true); t(88f, 54f - 8 * 5.5f - 3, "8 m", 2, 0.75f); t(46f, 5f, "9 m", 4, 0.75f); t(82f, 58f, "6 s", 4, 0.75f)
+        } },
+        "ex25_cremas" to { fig {
+            ln(8f, 54f, 94f, 54f); ln(8f, 54f, 8f, 4f)
+            for (x in 0..12) { val y = x * x + 5 * x; dot(8f + x * 6.6f, 54f - y * 0.23f, if (x == 7) 1 else 2) }
+            t(8f + 7 * 6.6f, 54f - 84 * 0.23f - 5, "(7, 84)", 1, 0.75f); t(8f + 12 * 6.6f - 4, 54f - 204 * 0.23f - 4, "(12, 204)", 2, 0.75f); t(50f, 58f, "semanas", 5, 0.7f)
+        } },
+        "ex25_vivero" to { fig {
+            val x0 = 30f; val y0 = 26f; val s = 28f; val dx = 12f; val dy = -9f
+            poly(x0, y0, x0 + s, y0, x0 + s, y0 + s, x0, y0 + s)
+            ln(x0, y0, x0 + dx, y0 + dy); ln(x0 + s, y0, x0 + s + dx, y0 + dy); ln(x0 + s, y0 + s, x0 + s + dx, y0 + s + dy); ln(x0 + dx, y0 + dy, x0 + s + dx, y0 + dy); ln(x0 + s + dx, y0 + dy, x0 + s + dx, y0 + s + dy)
+            ln(x0 + dx, y0 + dy, x0 + dx, y0 + s + dy, 5, dash = true); ln(x0 + dx, y0 + s + dy, x0 + s + dx, y0 + s + dy, 5, dash = true); ln(x0, y0 + s, x0 + dx, y0 + s + dy, 5, dash = true)
+            ln(x0, y0, x0 + dx, y0 + s + dy, 1); ln(x0, y0 + s, x0 + dx, y0 + dy, 1); ln(x0 + s, y0, x0 + s + dx, y0 + s + dy, 1); ln(x0 + s, y0 + s, x0 + s + dx, y0 + dy, 1)
+            val ax = x0 + s / 2 + dx / 2; val ay = 2f
+            ln(ax, ay, x0, y0, 2); ln(ax, ay, x0 + s, y0, 2); ln(ax, ay, x0 + s + dx, y0 + dy, 2); ln(ax, ay, x0 + dx, y0 + dy, 2, dash = true)
+            t(x0 + s / 2, y0 + s + 4, "2 m", 0, 0.75f); t(ax + 14, 10f, "√5", 2, 0.8f)
+        } },
+        "ex25_cohete" to { fig {
+            val k = 8f; val ox = 24f; val oy = 54f; val bx = ox + 2 * sqrt(3f) * k
+            val y1 = oy - 2 * k; val y2 = oy - 6 * k
+            ln(ox, oy, bx + 6, oy); ln(bx, oy, bx, y2 - 2, 5); ra(bx, oy, ox, oy, bx, y2)
+            ln(ox, oy, bx, y1, 2); ln(ox, oy, bx, y2, 1); dot(bx, y1, 2); dot(bx, y2, 1)
+            t((ox + bx) / 2, oy + 4, "2√3 km", 0, 0.8f); t(bx + 9, (oy + y1) / 2, "2 km", 2, 0.8f); t(bx + 5, (y1 + y2) / 2, "h", 1)
+            t(ox + 13, oy - 3, "30°", 2, 0.7f); t(ox + 8, oy - 9, "60°", 1, 0.7f)
+        } },
+        "ex25_barras" to { fig {
+            val a = listOf(6, 10, 12, 2); val b = listOf(5, 11, 10, 4); val lab = listOf("C", "B", "A", "AD")
+            ln(8f, 52f, 94f, 52f)
+            for (i in 0 until 4) {
+                val x = 12f + i * 21f
+                poly(x, 52f, x + 7f, 52f, x + 7f, 52f - a[i] * 3.4f, x, 52f - a[i] * 3.4f, c = 2, fill = true)
+                poly(x + 8f, 52f, x + 15f, 52f, x + 15f, 52f - b[i] * 3.4f, x + 8f, 52f - b[i] * 3.4f, c = 4, fill = true)
+                t(x + 3.5f, 52f - a[i] * 3.4f - 3, "${a[i]}", 2, 0.7f); t(x + 11.5f, 52f - b[i] * 3.4f - 3, "${b[i]}", 4, 0.7f); t(x + 7.5f, 56f, lab[i], 0, 0.8f)
+            }
+            t(30f, 4f, "Sección A", 2, 0.75f); t(70f, 4f, "Sección B", 4, 0.75f)
+        } }
+    )
+
+    fun get(id: String): List<Pr>? = (defs[id] ?: exDefs[id])?.invoke()
+    val ids: Set<String> get() = defs.keys + exDefs.keys
 }
