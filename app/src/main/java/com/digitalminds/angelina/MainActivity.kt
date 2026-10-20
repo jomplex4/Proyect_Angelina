@@ -50,6 +50,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -168,7 +169,15 @@ fun copy(ctx: Context, text: String) {
 fun AppRoot(vm: MainViewModel) {
     val screen by vm.screen.collectAsState()
     val overlay by vm.overlay.collectAsState()
-    BackHandler(enabled = screen != Screen.Home || overlay != 0) { if (overlay != 0) vm.overlay.value = 0 else vm.go(Screen.Home) }
+    val help by vm.help.collectAsState()
+    val solverId by vm.solverId.collectAsState()
+    BackHandler(enabled = screen != Screen.Home || overlay != 0 || help != null) {
+        if (help != null) vm.help.value = null
+        else if (overlay != 0) vm.overlay.value = 0
+        else if (screen == Screen.Solver && solverId != null) vm.openSolver(null)
+        else if (screen == Screen.Beca && vm.becaRun.value != null) vm.becaBack()
+        else vm.go(Screen.Home)
+    }
     BoxWithConstraints(Modifier.fillMaxSize().background(Brand.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
         val kh = maxHeight * 0.47f
         Column(Modifier.fillMaxSize()) {
@@ -184,18 +193,29 @@ fun AppRoot(vm: MainViewModel) {
                     Screen.Units -> UnitsScreen(vm)
                     Screen.Guide -> GuideScreen(vm)
                     Screen.Settings -> SettingsScreen(vm)
+                    Screen.Formulas -> FormulasScreen(vm)
+                    Screen.Solver -> SolverScreen(vm)
+                    Screen.Beca -> BecaScreen(vm)
                 }
             }
-            if (screen == Screen.Home || screen == Screen.Matrix || screen == Screen.Stats || screen == Screen.Table || screen == Screen.Graph) {
-                val s = remember { vm.settings.value }
-                Keypad(
-                    Modifier.fillMaxWidth().height(kh).padding(horizontal = 8.dp, vertical = 6.dp),
-                    s.page, s.haptics, onPage = { vm.setPage(it) }, onKey = { vm.onKey(it) }
-                )
+            val solverKeys = screen == Screen.Solver && (solverId?.let { Solvers.byId(it) }?.special ?: 1) == 0
+            if (screen == Screen.Home || screen == Screen.Matrix || screen == Screen.Stats || screen == Screen.Table || screen == Screen.Graph || solverKeys) {
+                val st by vm.settings.collectAsState()
+                val pages = remember(st.order, st.hidden, st.myKeys) { vm.pages(st) }
+                // Si cambia el orden o Mis teclas, el teclado se rehace y abre en la página fijada o la última usada.
+                key(pages.map { it.id }, st.myKeys) {
+                    val start = remember { vm.startPage() }
+                    Keypad(
+                        Modifier.fillMaxWidth().height(kh).padding(horizontal = 8.dp, vertical = 6.dp),
+                        pages, start, st.haptics, onPage = { vm.setPage(it) }, onKey = { vm.onKey(it) },
+                        onHelp = { vm.showHelp(it) }, onUse = { vm.countUse(it) }
+                    )
+                }
             }
         }
         if (overlay == 1) ModesOverlay(vm)
         if (overlay == 2) SearchOverlay(vm)
+        HelpSheet(vm)
     }
 }
 
@@ -214,7 +234,7 @@ private fun TopBar(vm: MainViewModel, screen: Screen) {
             else {
                 val name = when (screen) {
                     Screen.Home -> "Inicio"; Screen.Matrix -> "Matrices"; Screen.Stats -> "Estadística"; Screen.Table -> "Tabla"; Screen.Graph -> "Gráfica"
-                    Screen.Programs -> "Programas"; Screen.Units -> "Unidades"; Screen.Guide -> "Manual"; Screen.Settings -> "Ajustes"
+                    Screen.Programs -> "Programas"; Screen.Units -> "Unidades"; Screen.Guide -> "Manual"; Screen.Settings -> "Ajustes"; Screen.Formulas -> "Formulario"; Screen.Solver -> "Paso a paso"; Screen.Beca -> "Beca 18"
                 }
                 BasicText(name.uppercase(), style = label(12, Brand.text, true).copy(letterSpacing = 1.6.sp))
                 Spacer(Modifier.width(10.dp))
@@ -254,7 +274,8 @@ private fun HomeScreen(vm: MainViewModel) {
                     Column(Modifier.padding(horizontal = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         for (tip in listOf(
                             "Desliza las teclas a los lados para ver más páginas",
-                            "Mantén pulsada una tecla para ver sus variantes",
+                            "Mantén pulsada una tecla para ver su ayuda con ejemplos",
+                            "Desliza una tecla arriba o abajo para ver sus variantes",
                             "La lupa busca cualquier función por su nombre",
                             "El libro abre el manual con ejemplos"
                         )) BasicText(tip, style = label(13, Brand.textDim, align = TextAlign.Center), modifier = Modifier.fillMaxWidth())
@@ -335,10 +356,13 @@ private fun ModesOverlay(vm: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Caption("Modos", Modifier.padding(8.dp))
-            for ((n, s) in listOf("Inicio" to Screen.Home, "Matrices y vectores" to Screen.Matrix, "Estadística" to Screen.Stats, "Tabla de valores" to Screen.Table, "Gráfica" to Screen.Graph,
-                "Programas" to Screen.Programs, "Unidades y constantes" to Screen.Units, "Manual" to Screen.Guide)) {
-                Box(Modifier.fillMaxWidth().height(44.dp).background(Brand.keyNum, RoundedCornerShape(10.dp)).pointerInput(n) { detectTapGestures { vm.go(s) } }.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-                    BasicText(n, style = label(16, Brand.text))
+            for ((n, s) in listOf("Inicio" to Screen.Home, "Beca 18" to Screen.Beca, "Matrices y vectores" to Screen.Matrix, "Estadística" to Screen.Stats, "Tabla de valores" to Screen.Table, "Gráfica" to Screen.Graph,
+                "Programas" to Screen.Programs, "Unidades y constantes" to Screen.Units, "Formulario" to Screen.Formulas, "Paso a paso" to Screen.Solver, "Manual" to Screen.Guide)) {
+                Row(Modifier.fillMaxWidth().height(44.dp).background(Brand.keyNum, RoundedCornerShape(10.dp)).padding(end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f).fillMaxHeight().pointerInput(n) { detectTapGestures { if (s == Screen.Solver) vm.openSolver(null) else vm.go(s) } }.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
+                        BasicText(n, style = label(16, Brand.text))
+                    }
+                    HelpDot { vm.showModeHelp(n) }
                 }
             }
         }

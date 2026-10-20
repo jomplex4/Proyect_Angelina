@@ -17,7 +17,8 @@ object Guide {
             "Abre Modos (ícono de cuadrícula) y elige Gráfica.", "Escribe la función en f1.", "Toca la curva cerca del cruce con el eje x y pulsa Raíz; cerca del fondo pulsa Mín.",
             "En el ejemplo las raíces son 1 y 3 y el vértice está en x = 2."),
         g("Porcentajes sucesivos", "Aplicar aumentos y descuentos uno tras otro.", "50*(1+10/100)*(1-30/100)*(1-5/100)", "porcentaje aumento descuento sucesivo tanto por ciento",
-            "Cada aumento de a% multiplica por (1 + a/100); cada descuento de d% multiplica por (1 − d/100).", "Multiplica el precio por todos los factores.",
+            "En la página Aritmética usa +% para aumentar y −% para descontar; % único da el porcentaje equivalente de una lista como [10, −30, −5].",
+            "A mano: cada aumento de a% multiplica por (1 + a/100) y cada descuento de d% por (1 − d/100).",
             "Ejemplo: 50 con +10%, −30% y −5% da 1463/40 = 36,575 (factor 0,7315, descuento único 26,85%)."),
         g("Descuento único equivalente", "Reemplazar dos descuentos por uno solo.", "1-(1-20/100)*(1-40/100)", "descuento unico equivalente sucesivos",
             "Resta de 1 el producto de los factores.", "Ejemplo: 20% y 40% dan 13/25 = 0,52, es decir 52%."),
@@ -31,8 +32,20 @@ object Guide {
         g("¿Es cierto?: comprobar una igualdad", "Saber si dos expresiones son iguales.", "3^2+4^2=5^2", "comprobar verificar igualdad verdadero falso identidad",
             "Escribe una igualdad, por ejemplo 3² + 4² = 5².", "Mantén pulsada la tecla = y elige ¿Es cierto?.",
             "Si la diferencia entre ambos lados se simplifica a 0 verás Verdadero ✓; si no, Falso ✗."),
-        g("Seno de ángulos en grados", "Calcular sen 30° y otros ángulos notables.", "sin(30*pi/180)", "seno coseno tangente grados angulo notable trigonometria",
+        g("Seno de ángulos en grados", "Calcular sen 30° y otros ángulos notables.", "sin(30)", "seno coseno tangente grados angulo notable trigonometria",
             "Toca el indicador de ángulo arriba a la derecha hasta que diga GRADOS.", "Pulsa sen, escribe 30 y pulsa =.", "Resultado: 1/2."),
+        g("Practicar para Beca 18", "Problemas tipo examen por tema y simulacros de 30 preguntas con cronómetro.", "comb(10,3)", "beca 18 examen simulacro practica razonamiento matematico preguntas alternativas",
+            "Abre Modos y elige Beca 18.", "Practicar por tema: eliges una alternativa y ves al instante si acertaste, con la solución paso a paso.",
+            "Simulacro: 30 preguntas mezcladas de todos los temas, con o sin límite de tiempo; se corrige al terminar y ves tus resultados por tema.",
+            "Repasar mis errores junta las preguntas que fallaste la última vez. Desde cada solución puedes probarla en la calculadora o abrir el paso a paso."),
+        g("Resolver paso a paso", "Ver la fórmula, la sustitución de tus datos y cada paso hasta el resultado.", "solve(2*x^2-3*x-2=0,x)", "paso a paso resolver explicar pasos sustitucion tabla frecuencias",
+            "Abre Modos y elige Paso a paso.", "Elige un tema (por ejemplo Ecuación de segundo grado) y escribe tus datos o pulsa Ejemplo.",
+            "Pulsa Resolver: verás Δ, √Δ, x₁, x₂, la suma, el producto y el vértice.", "En Estadística puedes armar la tabla de frecuencias con intervalos y obtener media, mediana y moda."),
+        g("Personalizar el teclado", "Ordenar páginas, ocultarlas, fijar una y armar Mis teclas.", "2+3", "teclado paginas ordenar ocultar fijar mis teclas favoritas personalizar",
+            "Desliza el teclado a los lados; abajo ves el nombre de la página.", "En Ajustes, sección Teclado, usa ↑ ↓ para ordenar, 👁 para ocultar y 📌 para fijar la página con la que abre.",
+            "Ordenar por mi uso pone primero las páginas que más usas.", "Para Mis teclas mantén pulsada cualquier tecla y toca ☆ Agregar a Mis teclas (hasta 10)."),
+        g("Plantillas de gráficas", "Graficar recta, parábola, exponencial y otras con una tecla.", "x^2-4*x+3", "plantilla grafica recta parabola exponencial logaritmica hiperbola valor absoluto",
+            "Abre Gráfica y toca f1.", "Desliza el teclado hasta la página Gráficas y toca la plantilla.", "Cambia los números para mover la curva y usa Raíz, Mín o Máx."),
         // Funciones de la calculadora
         g("Matrices: agregar filas y columnas", "Agrandar o achicar una matriz mientras la escribes.", "det([[1,2,3],[4,5,6],[7,8,10]])", "matriz tamano filas columnas",
             "Pulsa [M] en la página 6 para insertar una matriz 2 × 2. Aparecen los botones + fila y + columna.", "Toca una celda, escribe el valor y pulsa + fila o + columna.",
@@ -129,7 +142,7 @@ object Guide {
             "Página 3: mod, MCD y MCM.", "Ejemplo: 17 mod 5 = 2; MCD(12,18) = 6; MCM(12,18) = 36.")
     )
 
-    private fun norm(t: String) = t.lowercase().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
+    fun norm(t: String) = t.lowercase().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
 
     fun search(q: String): List<GuideEntry> {
         val words = norm(q).split(' ').filter { it.isNotBlank() }

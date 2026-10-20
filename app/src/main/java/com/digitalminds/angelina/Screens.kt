@@ -58,7 +58,7 @@ import kotlin.math.log10
 import kotlin.math.pow
 
 @Composable
-private fun Chips(opts: List<String>, sel: Int, onSel: (Int) -> Unit) {
+fun Chips(opts: List<String>, sel: Int, onSel: (Int) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         opts.forEachIndexed { i, o -> Pill(o, selected = i == sel) { onSel(i) } }
     }
@@ -441,15 +441,29 @@ fun UnitsScreen(vm: MainViewModel) {
 // ---------------- Guide ----------------
 @Composable
 fun GuideScreen(vm: MainViewModel) {
-    var q by remember { mutableStateOf("") }
+    var q by remember { mutableStateOf(vm.guideQuery.value) }
+    LaunchedEffect(Unit) { vm.guideQuery.value = "" }
     var open by remember { mutableIntStateOf(-1) }
     val list = remember(q) { Guide.search(q) }
+    val keys = remember(q) {
+        val words = Guide.norm(q).split(' ').filter { it.isNotBlank() }
+        if (words.isEmpty()) emptyList()
+        else KeyHelp.map.entries.filter { (lab, h) -> val t = Guide.norm(lab + " " + h.title + " " + h.what); words.all { t.contains(it) } }.map { it.key }.take(12)
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(46.dp).background(Brand.surface, RoundedCornerShape(12.dp)).border(1.dp, Brand.line, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
             if (q.isEmpty()) BasicText("Busca una tarea: ecuación de grado 2, parábola...", style = label(16, Brand.textDim))
             BasicTextField(q, { q = it; open = -1 }, Modifier.fillMaxWidth(), textStyle = label(16, Brand.text), singleLine = true, cursorBrush = SolidColor(Brand.accentHi))
         }
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (keys.isNotEmpty()) item(key = "teclas") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Caption("Teclas relacionadas (toca para ver su ayuda)")
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (lab in keys) Pill(lab + "  " + (KeyHelp.of(lab)?.title ?: "")) { Keys.byLabel[lab]?.let { vm.showHelp(it) } }
+                    }
+                }
+            }
             itemsIndexed(list, key = { _, e -> e.title }) { i, e ->
                 val isOpen = open == i
                 Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).pointerInput(i) { detectTapGestures { open = if (isOpen) -1 else i } }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -463,6 +477,28 @@ fun GuideScreen(vm: MainViewModel) {
                     }
                 }
             }
+            val forms = Formulas.search(q, null).let { if (q.isBlank()) emptyList() else it.take(10) }
+            if (forms.isNotEmpty()) item(key = "formulas") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Caption("Fórmulas relacionadas (toca para abrir el formulario)")
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (f in forms) Pill(f.title) { vm.openFormulas(f.title) }
+                    }
+                }
+            }
+            val words = Guide.norm(q).split(' ').filter { it.isNotBlank() }
+            val solv = if (words.isEmpty()) emptyList() else Solvers.all.filter { sv -> val t = Guide.norm(sv.title + " " + sv.desc); words.all { t.contains(it) } }.take(6)
+            if (solv.isNotEmpty()) item(key = "pasos") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Caption("Resolver paso a paso")
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (sv in solv) Pill(sv.title, bg = Brand.keyOp, fg = Brand.violet) { vm.openSolver(sv.id) }
+                    }
+                }
+            }
+            if (list.isEmpty() && keys.isEmpty() && forms.isEmpty() && solv.isEmpty()) item(key = "vacio") {
+                BasicText("No encontré esa tarea. Prueba con otra palabra, por ejemplo: raíz, porcentaje, matriz, gráfica.", style = label(14, Brand.textDim))
+            }
         }
     }
 }
@@ -474,6 +510,57 @@ private fun Toggle(text: String, on: Boolean, onChange: (Boolean) -> Unit) {
         BasicText(text, Modifier.weight(1f), style = label(16, Brand.text))
         Box(Modifier.width(46.dp).height(26.dp).background(if (on) Brand.accent else Brand.keyOp, RoundedCornerShape(13.dp)).padding(3.dp), contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart) {
             Box(Modifier.size(20.dp).background(Brand.text, RoundedCornerShape(10.dp)))
+        }
+    }
+}
+
+@Composable
+private fun SmallBtn(t: String, enabled: Boolean = true, color: Color = Brand.text, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).background(Brand.keyOp, RoundedCornerShape(9.dp))
+            .pointerInput(t, enabled) { detectTapGestures { if (enabled) onClick() } },
+        contentAlignment = Alignment.Center
+    ) { BasicText(t, style = label(15, if (enabled) color else Brand.textDim.copy(alpha = 0.4f), true)) }
+}
+
+/** Ajustes del teclado: orden de páginas, ocultar, fijar, ordenar por uso y Mis teclas. */
+@Composable
+private fun KeyboardSettings(vm: MainViewModel, s: Settings) {
+    val ids = remember(s.order) { s.order.filter { it in Keys.defaultOrder }.distinct() + Keys.defaultOrder.filter { it !in s.order } }
+    Caption("Teclado: páginas")
+    BasicText("Ordena con ↑ ↓, oculta con 👁 y fija con 📌 la página con la que abre el teclado.", style = label(13, Brand.textDim))
+    Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ids.forEachIndexed { i, id ->
+            val hidden = id in s.hidden
+            val pinned = s.pinned == id
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                BasicText("${i + 1}", Modifier.width(20.dp), style = label(13, Brand.textDim))
+                Column(Modifier.weight(1f)) {
+                    BasicText(Keys.pageName(id), style = label(15, if (hidden) Brand.textDim else Brand.text, !hidden))
+                    BasicText((if (pinned) "Fijada · " else "") + (if (hidden) "Oculta · " else "") + "${vm.usageOf(id)} usos", style = label(11, if (pinned) Brand.orange else Brand.textDim))
+                }
+                SmallBtn("↑", i > 0) { vm.movePage(id, -1) }
+                SmallBtn("↓", i < ids.size - 1) { vm.movePage(id, 1) }
+                SmallBtn(if (hidden) "○" else "👁") { vm.toggleHidden(id) }
+                SmallBtn("📌", color = if (pinned) Brand.orange else Brand.text) { vm.togglePinned(id) }
+            }
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pill("Ordenar por mi uso") { vm.sortPagesByUsage() }
+        Pill("Restablecer") { vm.resetPages() }
+    }
+    Caption("Mis teclas (${s.myKeys.size} de ${Keys.MY_MAX})")
+    if (s.myKeys.isEmpty()) BasicText("Mantén pulsada cualquier tecla y toca ☆ Agregar a Mis teclas.", style = label(13, Brand.textDim))
+    else Column(Modifier.fillMaxWidth().background(Brand.surface, RoundedCornerShape(12.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        s.myKeys.forEachIndexed { i, lab ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                BasicText(lab, Modifier.width(80.dp), style = TextStyle(color = Brand.text, fontFamily = Brand.math, fontSize = 16.sp))
+                BasicText(KeyHelp.of(lab)?.title ?: "", Modifier.weight(1f), style = label(12, Brand.textDim), maxLines = 1)
+                SmallBtn("↑", i > 0) { vm.moveMine(lab, -1) }
+                SmallBtn("↓", i < s.myKeys.size - 1) { vm.moveMine(lab, 1) }
+                SmallBtn("✕", color = Brand.error) { vm.toggleMine(lab) }
+            }
         }
     }
 }
@@ -495,6 +582,7 @@ fun SettingsScreen(vm: MainViewModel) {
         Chips(listOf("10 s", "30 s", "60 s"), listOf(10, 30, 60).indexOf(s.timeout).coerceAtLeast(0)) { vm.setSettings(s.copy(timeout = listOf(10, 30, 60)[it])) }
         Toggle("Fracciones mixtas", s.mixed) { vm.setSettings(s.copy(mixed = it)) }
         Toggle("Vibración al pulsar", s.haptics) { vm.setSettings(s.copy(haptics = it)) }
+        KeyboardSettings(vm, s)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("Borrar historial") { vm.clearHistory() }
             Pill("Borrar variables") { vm.clearDefs() }

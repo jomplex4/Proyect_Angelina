@@ -22,6 +22,9 @@ sealed interface Screen {
     data object Units : Screen
     data object Guide : Screen
     data object Settings : Screen
+    data object Formulas : Screen
+    data object Solver : Screen
+    data object Beca : Screen
 }
 
 data class MxState(val name: Char = 'A', val dims: Map<Char, Pair<Int, Int>> = mapOf('A' to (3 to 3), 'B' to (3 to 3), 'C' to (3 to 3)), val vdim: Int = 3, val out: String? = null, val dec: String? = null, val err: String? = null)
@@ -40,6 +43,15 @@ class GView {
     var info by mutableStateOf("")
 }
 
+/** Pedido de ayuda abierto: el texto, la tecla (si es una tecla) y sus variantes hermanas. */
+/** Una sesión de práctica o simulacro: preguntas, respuestas elegidas, pregunta actual y estado. */
+data class BecaRun(
+    val ids: List<String>, val sim: Boolean, val title: String, val answers: Map<String, Int> = emptyMap(), val cur: Int = 0,
+    val startMs: Long = System.currentTimeMillis(), val limitMin: Int = 0, val finished: Boolean = false, val results: Boolean = false, val secs: Int = 0
+)
+
+class HelpReq(val help: KHelp, val key: Key?, val siblings: List<Key>)
+
 class MainViewModel : ViewModel() {
     private val store = Services.store
     private val cas = Services.cas
@@ -55,6 +67,14 @@ class MainViewModel : ViewModel() {
     val st = MutableStateFlow(StState())
     val pg = MutableStateFlow(PgState())
     val gv = GView()
+    val help = MutableStateFlow<HelpReq?>(null)
+    val guideQuery = MutableStateFlow("")
+    val formulaQuery = MutableStateFlow("")
+    val solverId = MutableStateFlow<String?>(null)
+    val becaRun = MutableStateFlow<BecaRun?>(null)
+    val becaStats = MutableStateFlow(store.loadBeca())
+    val solveOut = MutableStateFlow<SOut?>(null)
+    private val texts = HashMap<String, MutableStateFlow<String>>()
 
     private val fields = HashMap<String, MutableStateFlow<Ed>>()
     private val defs = store.loadDefs()
@@ -81,6 +101,142 @@ class MainViewModel : ViewModel() {
 
     fun cancel() = cas.cancel()
 
+    // ---------- ayuda integrada ----------
+    fun showHelp(k: Key) {
+        val h = KeyHelp.of(k.label) ?: return
+        val parent = Keys.parentOf(k.label)
+        val sib = if (parent == null || parent.tapMenu) emptyList()
+        else (listOf(parent) + parent.more.map { Key(it.first, it.second) }).filter { it.label != k.label }
+        help.value = HelpReq(h, k, sib)
+    }
+
+    fun showModeHelp(name: String) { ModeHelp.map[name]?.let { help.value = HelpReq(it, null, emptyList()) } }
+
+    /** "Probar": lleva el ejemplo a Inicio y lo calcula; si el ejemplo es en grados, activa ese modo. */
+    fun tryExample(e: HEx) {
+        help.value = null
+        if (e.deg && settings.value.angle != 0) {
+            setSettings(settings.value.copy(angle = 0))
+            android.widget.Toast.makeText(Services.app, "Modo de ángulo: GRADOS", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        sendExpr(e.input, true)
+    }
+
+    fun openGuide(q: String) { guideQuery.value = q; go(Screen.Guide) }
+    fun openFormulas(q: String) { formulaQuery.value = q; go(Screen.Formulas) }
+
+    // ---------- Beca 18 ----------
+    private fun becaStart(ids: List<String>, sim: Boolean, title: String, limit: Int = 0) {
+        if (ids.isEmpty()) return
+        becaRun.value = BecaRun(ids, sim, title, limitMin = limit)
+        go(Screen.Beca)
+    }
+
+    fun becaTopic(t: String) = becaStart(Beca.all.filter { it.topic == t }.sortedBy { it.level }.map { it.id }, false, Beca.topicName(t))
+    fun becaSim(limitMin: Int) = becaStart(Beca.simulacro(System.currentTimeMillis()), true, "Simulacro", limitMin)
+    fun becaMistakes() = becaStart(becaStats.value.rec.filter { !it.value.last && Beca.byId(it.key) != null }.keys.toList(), false, "Repaso de errores")
+
+    private fun record(id: String, ok: Boolean) {
+        val b = becaStats.value
+        val r = b.rec[id] ?: BRec()
+        val nb = b.copy(rec = b.rec + (id to BRec(r.tries + 1, r.ok + if (ok) 1 else 0, ok)))
+        becaStats.value = nb; store.saveBeca(nb)
+    }
+
+    /** Elegir una alternativa: en práctica se corrige al instante; en el simulacro se puede cambiar hasta terminar. */
+    fun becaAnswer(i: Int) {
+        val r = becaRun.value ?: return
+        val id = r.ids[r.cur]
+        if (r.finished) return
+        if (r.sim) becaRun.value = r.copy(answers = r.answers + (id to i))
+        else if (id !in r.answers) {
+            becaRun.value = r.copy(answers = r.answers + (id to i))
+            record(id, Beca.byId(id)?.correct == i)
+        }
+    }
+
+    fun becaGo(i: Int) { becaRun.value?.let { r -> if (i in r.ids.indices) becaRun.value = r.copy(cur = i, results = false) } }
+
+    fun becaFinish() {
+        val r = becaRun.value ?: return
+        if (r.finished) { becaRun.value = r.copy(results = true); return }
+        val secs = ((System.currentTimeMillis() - r.startMs) / 1000).toInt()
+        if (r.sim) {
+            for ((id, a) in r.answers) record(id, Beca.byId(id)?.correct == a)
+            val score = r.ids.count { r.answers[it] == Beca.byId(it)?.correct }
+            val b = becaStats.value
+            val nb = b.copy(sims = b.sims + SimRec(System.currentTimeMillis(), score, r.ids.size, secs))
+            becaStats.value = nb; store.saveBeca(nb)
+        }
+        becaRun.value = r.copy(finished = true, results = true, secs = secs)
+    }
+
+    fun becaBack() {
+        val r = becaRun.value
+        if (r == null) go(Screen.Home)
+        else if (r.finished && !r.results) becaRun.value = r.copy(results = true)
+        else becaRun.value = null
+    }
+
+    fun becaResetProgress() { becaStats.value = BecaStats(); store.saveBeca(BecaStats()) }
+
+    // ---------- paso a paso ----------
+    fun text(id: String): MutableStateFlow<String> = texts.getOrPut(id) { MutableStateFlow("") }
+    private fun inId(s: Solver, i: SIn) = "SV:${s.id}:${i.id}"
+
+    /** Abre un resolutor (o la lista si id es null). Llena los datos de ejemplo la primera vez. */
+    fun openSolver(id: String?) {
+        if (screen.value != Screen.Solver) go(Screen.Solver)
+        overlay.value = 0
+        solverId.value = id
+        solveOut.value = null
+        val s = id?.let { Solvers.byId(it) } ?: return
+        if (s.inputs.all { if (it.list) text(inId(s, it)).value.isBlank() else Editor.isBlank(field(inId(s, it)).value.row) }) solverExample(s)
+        s.inputs.firstOrNull { !it.list }?.let { focus.value = inId(s, it) }
+    }
+
+    fun solverExample(s: Solver) {
+        for (i in s.inputs) if (i.list) text(inId(s, i)).value = i.def else setField(inId(s, i), Parse.row(i.def) ?: Row())
+        solveOut.value = null
+    }
+
+    fun solverClear(s: Solver) {
+        for (i in s.inputs) if (i.list) text(inId(s, i)).value = "" else field(inId(s, i)).value = Ed()
+        solveOut.value = null
+        s.inputs.firstOrNull { !it.list }?.let { focus.value = inId(s, it) }
+    }
+
+    fun runSolver() {
+        val s = solverId.value?.let { Solvers.byId(it) } ?: return
+        when (s.special) {
+            1 -> { solveOut.value = StatSolve.loose(text(inId(s, s.inputs[0])).value); return }
+            2 -> { solveOut.value = StatSolve.grouped(text(inId(s, s.inputs[0])).value, text(inId(s, s.inputs[1])).value, text(inId(s, s.inputs[2])).value); return }
+        }
+        val vals = LinkedHashMap<String, String>()
+        for (i in s.inputs) {
+            val row = field(inId(s, i)).value.row
+            if (Editor.isBlank(row) || Editor.firstEmpty(row) != null) { solveOut.value = SOut(emptyList(), error = "Completa el dato: ${i.label}."); focus.value = inId(s, i); return }
+            vals[i.id] = Ser.giac(row, ctx())
+        }
+        if (busy.value) return
+        viewModelScope.launch {
+            busy.value = true
+            val lines = ArrayList<SLine>()
+            var err: String? = null
+            for (st in s.steps) {
+                val shown = Solvers.subst(st.show, vals)
+                val e = Solvers.subst(st.eval, vals)
+                val r = cas.eval(if (st.raw) e else "simplify($e)")
+                val out = r.out?.trim()
+                if (!r.ok || out == null || out.isEmpty() || out == "undef") { err = "No se pudo calcular el paso: ${st.label}. " + friendly(r.error ?: "undef"); break }
+                lines.add(SLine(st.label, shown, out, if (st.raw) null else approxOf(out)))
+                if (st.save.isNotEmpty()) vals[st.save] = out
+            }
+            solveOut.value = SOut(lines, error = err)
+            busy.value = false
+        }
+    }
+
     // ---------- navigation and settings ----------
     fun go(s: Screen) {
         screen.value = s
@@ -103,7 +259,67 @@ class MainViewModel : ViewModel() {
     }
 
     fun cycleAngle() = setSettings(settings.value.copy(angle = if (settings.value.angle == 0) 1 else 0))
-    fun setPage(p: Int) { if (p != settings.value.page) setSettings(settings.value.copy(page = p)) }
+    // ---------- teclado: páginas, orden, Mis teclas ----------
+    fun pages(s: Settings = settings.value) = Keys.arrange(s.order, s.hidden, s.myKeys)
+
+    /** Página con la que abre el teclado: la fijada o, si no hay, la última usada. */
+    fun startPage(): Int {
+        val ps = pages(); val s = settings.value
+        val id = s.pinned.ifEmpty { s.lastPage }
+        return ps.indexOfFirst { it.id == id }.coerceAtLeast(0)
+    }
+
+    fun setPage(p: Int) {
+        val id = pages().getOrNull(p)?.id ?: return
+        if (id != settings.value.lastPage) setSettings(settings.value.copy(lastPage = id))
+    }
+
+    private fun fullOrder() = settings.value.order.filter { it in Keys.defaultOrder }.distinct() + Keys.defaultOrder.filter { it !in settings.value.order }
+
+    fun movePage(id: String, d: Int) {
+        val o = fullOrder().toMutableList()
+        val i = o.indexOf(id); val j = i + d
+        if (i < 0 || j !in o.indices) return
+        o[i] = o[j].also { o[j] = o[i] }
+        setSettings(settings.value.copy(order = o))
+    }
+
+    fun toggleHidden(id: String) {
+        val h = settings.value.hidden
+        val nh = if (id in h) h - id else h + id
+        if (Keys.defaultOrder.all { it in nh }) return
+        setSettings(settings.value.copy(hidden = nh, pinned = if (id in nh && settings.value.pinned == id) "" else settings.value.pinned))
+    }
+
+    fun togglePinned(id: String) = setSettings(settings.value.copy(pinned = if (settings.value.pinned == id) "" else id, hidden = settings.value.hidden - id))
+    fun resetPages() = setSettings(settings.value.copy(order = emptyList(), hidden = emptySet(), pinned = ""))
+    fun sortPagesByUsage() = setSettings(settings.value.copy(order = Keys.byUsage(fullOrder(), settings.value.usage)))
+
+    private var usageDirty = 0
+    private val usage = HashMap(settings.value.usage)
+    fun countUse(id: String) {
+        usage[id] = (usage[id] ?: 0) + 1
+        if (++usageDirty >= 15) { usageDirty = 0; setSettings(settings.value.copy(usage = HashMap(usage))) }
+    }
+    fun usageOf(id: String) = usage[id] ?: 0
+
+    fun isMine(label: String) = label in settings.value.myKeys
+    fun toggleMine(label: String) {
+        val m = settings.value.myKeys
+        if (label in m) setSettings(settings.value.copy(myKeys = m - label))
+        else if (m.size >= Keys.MY_MAX) android.widget.Toast.makeText(Services.app, "Mis teclas ya tiene ${Keys.MY_MAX}. Quita una en Ajustes.", android.widget.Toast.LENGTH_SHORT).show()
+        else {
+            setSettings(settings.value.copy(myKeys = m + label, hidden = settings.value.hidden - Keys.MY))
+            android.widget.Toast.makeText(Services.app, "Agregada a Mis teclas", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    fun moveMine(label: String, d: Int) {
+        val m = settings.value.myKeys.toMutableList()
+        val i = m.indexOf(label); val j = i + d
+        if (i < 0 || j !in m.indices) return
+        m[i] = m[j].also { m[j] = m[i] }
+        setSettings(settings.value.copy(myKeys = m))
+    }
 
     fun clearHistory() { history.value = emptyList(); store.saveHistory(emptyList()) }
     fun clearDefs() { defs.clear(); store.saveDefs(defs); cas.setDefinitions(emptyList()); cas.cancel() }
@@ -152,6 +368,7 @@ class MainViewModel : ViewModel() {
             is KA.T -> edit { text(it, k.s) }
             is KA.F -> edit { func(it, k.name, k.pre) }
             is KA.Sp -> special(k.s)
+            is KA.P -> edit { e -> (Parse.row(k.src)?.nodes ?: emptyList()).fold(e) { acc, n -> Editor.insert(acc, n) } }
         }
     }
 
@@ -203,6 +420,7 @@ class MainViewModel : ViewModel() {
             S.MAT4 -> edit { Editor.insert(it, Mat(4, 4, List(16) { Row() }), 0) }
             S.LST -> edit { Editor.insert(it, Lst(listOf(Row())), 0) }
             S.VERIFY -> if (focus.value == "home") verify()
+            S.MYHINT -> android.widget.Toast.makeText(Services.app, "Mantén pulsada cualquier tecla y toca ★ Agregar a Mis teclas", android.widget.Toast.LENGTH_LONG).show()
             S.BASE -> setSettings(settings.value.copy(base = when (settings.value.base) { 10 -> 2; 2 -> 8; 8 -> 16; else -> 10 }))
         }
     }

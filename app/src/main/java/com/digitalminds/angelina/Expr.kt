@@ -275,6 +275,7 @@ object Names {
         "rand" to "aleatorio", "randint" to "aleatorio", "isprime" to "esprimo", "nextprime" to "sigprimo", "sum" to "Σ", "product" to "Π",
         "int" to "∫", "transpose" to "transpuesta", "trace" to "traza", "norm" to "norma", "cross" to "cruz", "dot" to "punto",
         "exact" to "exacto", "roots" to "raíces", "taylor" to "Taylor", "series" to "serie", "sign" to "signo", "conj" to "conjugado",
+        "pctde" to "% de", "pctmas" to "aumentar %", "pctmenos" to "descontar %", "pctequiv" to "% único",
         "re" to "Re", "im" to "Im", "arg" to "arg", "mean" to "media", "median" to "mediana", "stddev" to "σ", "stddevp" to "s"
     )
     val trig = setOf("sin", "cos", "tan", "cot", "sec", "csc")
@@ -351,6 +352,11 @@ object Ser {
             f.name == "not" -> "(-1-(${a[0]}))"
             f.name == "dms" -> "[iPart(${a[0]}),iPart(fPart(${a[0]})*60),fPart(fPart(${a[0]})*60)*60]"
             f.name == "fromdms" -> "((${a[0]})+(${a[1]})/60+(${a[2]})/3600)"
+            // Porcentajes (Beca 18): se traducen a operaciones exactas de Giac.
+            f.name == "pctde" -> "((${a[0]})*(${a[1]})/100)"
+            f.name == "pctmas" -> "((${a[0]})*(1+(${a[1]})/100))"
+            f.name == "pctmenos" -> "((${a[0]})*(1-(${a[1]})/100))"
+            f.name == "pctequiv" -> "((product(map(${a[0]},pp_->1+pp_/100))-1)*100)"
             k != null && f.name in Names.trig -> f.name + "((" + a.joinToString(",") + ")*" + k + ")"
             k != null && f.name in Names.itrig -> "simplify((" + f.name + "(" + a.joinToString(",") + "))/(" + k + "))"
             else -> f.name + "(" + a.joinToString(",") + ")"

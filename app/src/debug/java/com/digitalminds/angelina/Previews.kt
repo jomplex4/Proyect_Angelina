@@ -17,6 +17,6 @@ fun KeypadPreview() {
     val r = produceState(CasResult()) { value = FakeCasEngine().eval("int(x*exp(x),x)") }
     Column(Modifier.background(Brand.bg).padding(8.dp)) {
         MathView(Parse.row(r.value.out ?: "0") ?: Row(), 26f)
-        Keypad(Modifier.fillMaxWidth().height(330.dp), 0, false, {}, {})
+        Keypad(Modifier.fillMaxWidth().height(330.dp), Keys.arrange(emptyList(), emptySet(), emptyList()), 0, false, {}, {})
     }
 }
