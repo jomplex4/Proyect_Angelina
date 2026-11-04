@@ -11,8 +11,8 @@ android {
         applicationId = "com.digitalminds.angelina"
         minSdk = 31
         targetSdk = 37
-        versionCode = 14
-        versionName = "2.3"
+        versionCode = 15
+        versionName = "2.4"
 
         // One APK that works on any phone: 32-bit (armeabi-v7a) and 64-bit (arm64-v8a) engines inside.
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }

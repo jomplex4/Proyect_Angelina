@@ -46,7 +46,8 @@ class FormulaTest {
                 }
                 // Las rectas largas de ejes y gráficas se recortan al dibujar; el resto debe caber en la caja.
                 if (x is Ln) continue
-                for ((a, b) in pts) assertTrue("fuera de la caja $id: $x", a in -1f..101f && b in -1f..61f)
+                val hb = (BecaFigs.height[id] ?: 60f) + 1f
+                for ((a, b) in pts) assertTrue("fuera de la caja $id: $x", a in -1f..101f && b in -1f..hb)
             }
         }
     }

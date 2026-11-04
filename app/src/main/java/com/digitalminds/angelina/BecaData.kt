@@ -6,9 +6,35 @@ import kotlin.random.Random
  * Problema tipo Beca 18: alternativas en pantalla (4), su valor para Giac (si es numérico), la correcta,
  * la expresión que la verifica, la solución, figura, tabla opcional, advertencia y año (0 = banco propio).
  */
+/**
+ * Un problema de Beca 18.
+ * correct: alternativa que se califica como buena; -1 si ninguna lo es o si la pregunta es de respuesta abierta.
+ * official: clave oficial publicada, -1 si no hay.  answer: respuesta calculada cuando no coincide con ninguna alternativa.
+ * alsoRight: índices de otras alternativas que valen lo mismo que la correcta aunque se escriban distinto, como 5/12 y 15/36.
+ * answerVal: en preguntas abiertas, expresión de Giac con la respuesta; una prueba exige que coincida con check.
+ * src: "oficial", "ficha" o "propio".  group: semana y curso de la ficha.  letters: rótulos de las alternativas si no son A, B, C...
+ * trap y trapOpt: expresión de Giac del error común y la alternativa que lo recoge.  review: pendiente de revisión por la academia.
+ */
 class BProb(val id: String, val topic: String, val level: Int, val text: String, val opts: List<String>, val vals: List<String>, val correct: Int,
             val check: String, val steps: List<String>, val fig: String = "", val calc: String = "", val solver: String = "",
-            val table: List<List<String>> = emptyList(), val note: String = "", val year: Int = 0)
+            val table: List<List<String>> = emptyList(), val note: String = "", val year: Int = 0,
+            val theory: String = "", val idea: String = "", val mistake: String = "", val verify: String = "", val warn: String = "",
+            val trap: String = "", val trapOpt: Int = -1, val official: Int = -1, val letters: String = "", val src: String = "propio",
+            val group: String = "", val num: Int = 0, val answer: String = "", val review: Boolean = false, val answerVal: String = "", val alsoRight: List<Int> = emptyList()) {
+    /** Rótulo de la alternativa i. */
+    fun letter(i: Int): String = if (i in letters.indices) letters[i].toString() else if (i in 0..25) ('A' + i).toString() else "?"
+    /**
+     * Una respuesta es buena si es la alternativa correcta o una alternativa con el mismo texto, porque algunas fichas repiten una alternativa.
+     * En preguntas abiertas, la respuesta es la autoevaluación: 1 significa que la resolvió bien.
+     */
+    fun isRight(a: Int?): Boolean = when {
+        a == null -> false
+        opts.isEmpty() -> a == 1
+        else -> a in opts.indices && correct in opts.indices && (a == correct || a in alsoRight || opts[a] == opts[correct])
+    }
+    /** Se puede usar en simulacros: tiene alternativas y una de ellas es la correcta. */
+    val gradable: Boolean get() = opts.size >= 2 && correct in opts.indices
+}
 
 /**
  * Banco propio de problemas originales y exámenes oficiales Beca 18 (solo matemática) de 2023, 2024 y 2025.
@@ -21,11 +47,17 @@ object Beca {
     const val SIM_SIZE = 30
 
     fun topicName(id: String) = topics.firstOrNull { it.id == id }?.name ?: id
-    fun byId(id: String) = all.firstOrNull { it.id == id } ?: exams.firstOrNull { it.id == id }
+    fun byId(id: String) = all.firstOrNull { it.id == id } ?: exams.firstOrNull { it.id == id } ?: fichas.firstOrNull { it.id == id }
     fun exam(year: Int) = exams.filter { it.year == year }
 
-    /** Para practicar por tema se usan el banco propio y las preguntas oficiales. */
-    fun ofTopic(t: String) = (all + exams).filter { it.topic == t }.sortedBy { it.level }
+    /** Para practicar por tema se usan el banco propio, las preguntas oficiales y las de las fichas. */
+    fun ofTopic(t: String) = (all + exams + fichas).filter { it.topic == t }.sortedBy { it.level }
+
+    /** Ejercicios de las fichas de la academia, generados en BecaFichasGen.kt. */
+    val fichas: List<BProb> get() = BecaFichas.list
+    /** Grupos de fichas, como "Semana 1 · Geometría", en el orden del generador: por semana y luego por curso. */
+    val fichaGroups: List<String> by lazy { fichas.map { it.group }.distinct() }
+    fun ofFicha(g: String) = fichas.filter { it.group == g }.sortedBy { it.num }
 
     /**
      * Simulacro de 30 preguntas repartidas entre los temas. level 0 = mixto; 1, 2 o 3 = ese nivel
@@ -33,7 +65,7 @@ object Beca {
      */
     fun simulacro(seed: Long, level: Int = 0): List<String> {
         val rnd = Random(seed)
-        val pool = all + exams
+        val pool = (all + exams + fichas).filter { it.gradable }
         val main = if (level == 0) pool else pool.filter { it.level == level }
         val pools = topics.map { t -> main.filter { it.topic == t.id }.shuffled(rnd).toMutableList() }
         val pick = ArrayList<String>()
@@ -47,7 +79,8 @@ object Beca {
 
 
     val all: List<BProb> = ArrayList<BProb>().also { l -> part0(l); part1(l); part2(l); part3(l); part4(l); part5(l); part6(l) }
-    val exams: List<BProb> = ArrayList<BProb>().also { l -> exam0(l); exam1(l); exam2(l); exam3(l); exam4(l); exam5(l) }
+    /** Los 90 oficiales, transcritos completos, vienen de BecaOficialGen.kt (scripts/beca/gen.py). */
+    val exams: List<BProb> = BecaOficial.list
     private fun part0(l: MutableList<BProb>) { l.addAll(listOf(
         BProb("porc1", "porc", 1, "Una casaca cuesta S/ 240. La tienda aplica un descuento del 25% y luego cobra un recargo del 10% por envío sobre el precio rebajado. ¿Cuánto se paga en total?",
             listOf("S/ 186", "S/ 198", "S/ 204", "S/ 210"),
@@ -549,377 +582,5 @@ object Beca {
             listOf("1/32", "3/16", "5/32", "1/4"),
             listOf("1/32", "3/16", "5/32", "1/4"), 1, "(comb(5,4)+comb(5,5))/2^5",
             listOf("Exactamente 4: C(5,4) = 5 casos. Las 5: 1 caso. Total: 2⁵ = 32.", "P = 6/32 = 3/16."), "", "", "")
-    )) }
-    private fun exam0(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e23_01", "arit", 2, "Samuel cuenta las hojas de un libro: al agruparlas de 12 en 12, de 18 en 18 y de 20 en 20 siempre le sobran 7 hojas. Si el libro tiene entre 500 y 1200 páginas, ¿cuántas hojas tiene como máximo?",
-            listOf("277", "367", "547", "727"),
-            listOf("277", "367", "547", "727"), 2, "max(seq(when(180*k+7>=250 and 180*k+7<=600,180*k+7,0),k,0,10))",
-            listOf("Hojas = MCM(12, 18, 20)·k + 7 = 180k + 7: 187, 367, 547, 727...", "Cada hoja tiene 2 páginas: entre 500 y 1200 páginas son entre 250 y 600 hojas.", "El mayor valor en ese rango es 547."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_02", "arit", 2, "Dos señales luminosas se apagaron juntas. Una permanece 10 s apagada y 34 s encendida; la otra, 10 s apagada y 45 s encendida. ¿Después de cuántos segundos ambas se apagan juntas nuevamente?",
-            listOf("180", "220", "240", "210"),
-            listOf("180", "220", "240", "210"), 1, "lcm(44,55)",
-            listOf("Ciclos: 10 + 34 = 44 s y 10 + 45 = 55 s.", "Vuelven a apagarse juntas a los MCM(44, 55) = 220 s."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_03", "arit", 2, "Tres rollos de alambre de 720, 280 y 216 m se dividen, sin desperdicio, en trozos de igual longitud. ¿Cuántos trozos se obtendrán como mínimo?",
-            listOf("304", "142", "152", "167"),
-            listOf("304", "142", "152", "167"), 2, "720/gcd(gcd(720,280),216)+280/gcd(gcd(720,280),216)+216/gcd(gcd(720,280),216)",
-            listOf("Mínimo de trozos = trozos lo más largos posible: MCD(720, 280, 216) = 8 m.", "Trozos: 720/8 + 280/8 + 216/8 = 90 + 35 + 27 = 152."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_04", "arit", 3, "Un comerciante tiene 5 cajas con 9, 8, 12, 23 y 27 unidades; unas tienen lapiceros y otras borradores. Vende todo el contenido de una caja y, de lo que queda, los lapiceros son el cuádruple de los borradores. ¿Cuántos lapiceros le quedaron?",
-            listOf("70", "60", "48", "56"),
-            listOf(), 3, "",
-            listOf("Total: 79. Lo que queda es L + B = 5B: debe ser múltiplo de 5.", "Solo quitando la caja de 9 queda un múltiplo de 5: 70 = 5B, B = 14 y L = 56."), "", "", "", emptyList(), "Advertencia: con las cajas 8, 12, 23 y 27 ningún grupo suma exactamente 14, así que el enunciado oficial tiene una inconsistencia. La clave oficial (56) sale del razonamiento de divisibilidad.", 2023),
-        BProb("e23_05", "arit", 1, "Tenía S/ 3000, compré un monitor y me quedó S/ 1960. Luego recibí S/ 840, compré un regalo y me quedó S/ 2200. ¿Cuánto suma lo gastado en el monitor y el regalo?",
-            listOf("S/ 1640", "S/ 1540", "S/ 1840", "S/ 1340"),
-            listOf("1640", "1540", "1840", "1340"), 0, "(3000-1960)+(1960+840-2200)",
-            listOf("Monitor: 3000 − 1960 = 1040.", "Antes del regalo tenía 1960 + 840 = 2800; regalo: 2800 − 2200 = 600.", "Total: 1040 + 600 = 1640."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_06", "porc", 2, "El sueldo semanal de un médico es 25% más que el de una enfermera y 50% más que el de un técnico. Si los tres suman S/ 3700, ¿cuánto gana el técnico?",
-            listOf("S/ 1000", "S/ 1200", "S/ 900", "S/ 1500"),
-            listOf("1000", "1200", "900", "1500"), 0, "solve(t+6/5*t+3/2*t=3700,t)[0]",
-            listOf("Médico = 1,25·E = 1,5·T, así que E = 1,2·T.", "T + 1,2T + 1,5T = 3,7T = 3700, T = 1000."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_07", "geo", 2, "Se diseña una caja cúbica de volumen mínimo para guardar, sin que sobre espacio, cajitas de 20 × 10 × 8 cm con 50 mascarillas cada una. ¿Cuántas mascarillas caben?",
-            listOf("2000", "250", "1000", "2500"),
-            listOf("2000", "250", "1000", "2500"), 0, "(40/20)*(40/10)*(40/8)*50",
-            listOf("Arista mínima: MCM(20, 10, 8) = 40 cm.", "Cajitas: (40/20)(40/10)(40/8) = 2 · 4 · 5 = 40.", "Mascarillas: 40 · 50 = 2000."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_08", "prob", 2, "Una coneja espera tres conejitos. ¿Cuál es la probabilidad de que nazcan por lo menos dos machos?",
-            listOf("3/4", "3/8", "1/2", "1/4"),
-            listOf("3/4", "3/8", "1/2", "1/4"), 2, "(comb(3,2)+comb(3,3))/8",
-            listOf("Casos posibles: 2³ = 8.", "Al menos dos machos: 3 casos con exactamente dos y 1 con tres: 4.", "P = 4/8 = 1/2."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_09", "prob", 2, "De 40 matriculados en Cálculo I asisten 30. Aprueban el 70% de los que asisten y el 20% de los que no asisten. Si se elige un alumno al azar, ¿cuál es la probabilidad de que haya aprobado?",
-            listOf("0,575", "0,325", "0,550", "0,900"),
-            listOf("23/40", "13/40", "11/20", "9/10"), 0, "30/40*7/10+10/40*2/10",
-            listOf("P = (30/40)·0,7 + (10/40)·0,2 = 0,525 + 0,05 = 0,575."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_10", "porc", 2, "Del total de postulantes, el 40% no pasó el examen de aptitud. Los que aprobaron se dividieron en dos grupos iguales; del primero aprobó la entrevista el 35% y del segundo el 45%. ¿Qué porcentaje del total aprobó la entrevista?",
-            listOf("16%", "23%", "24%", "26%"),
-            listOf("16", "23", "24", "26"), 2, "35/100*30+45/100*30",
-            listOf("Aprobaron aptitud: 60%; cada grupo es 30% del total.", "0,35·30 + 0,45·30 = 10,5 + 13,5 = 24%."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_11", "alg", 2, "Dados p(x) = x⁶ + 2x⁴ + 2x² + 1 y q(x) = x⁴ + x³ + 2x² + x + 1, calcula el cociente de dividir p(x) entre q(x).",
-            listOf("x² + x + 1", "x² − x − 1", "x² + x − 1", "x² − x + 1"),
-            listOf("x^2+x+1", "x^2-x-1", "x^2+x-1", "x^2-x+1"), 3, "quo(x^6+2*x^4+2*x^2+1,x^4+x^3+2*x^2+x+1,x)",
-            listOf("Por división (Horner o clásica) el cociente es x² − x + 1 y el residuo 0.", "Comprobación: (x² − x + 1)(x⁴ + x³ + 2x² + x + 1) = p(x)."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_12", "ecu", 1, "En ajedrez, quien gana una partida recibe S/ 10 y quien pierde paga S/ 4. En 12 partidas un jugador ganó S/ 64. ¿Cuántas partidas ganó?",
-            listOf("6", "8", "4", "2"),
-            listOf("6", "8", "4", "2"), 1, "solve(10*g-4*(12-g)=64,g)[0]",
-            listOf("10g − 4(12 − g) = 64.", "14g = 112, g = 8."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_13", "arit", 1, "Un pendrive de 32 GB (1 GB = 1024 MB) tiene archivos de 50 MB a 70 MB. ¿Cuál es el número máximo de archivos que potencialmente puede salvar?",
-            listOf("655", "468", "474", "642"),
-            listOf("655", "468", "474", "642"), 0, "floor(32*1024/50)",
-            listOf("Máximo número de archivos: todos del menor tamaño (50 MB).", "32 · 1024 = 32 768 MB; 32 768/50 = 655,36: caben 655."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_14", "alg", 3, "Simplifica E = (ˣ√(3ˣ + 5⁻ˣ) + ˣ√(3⁻ˣ + 5ˣ)) / ˣ√(15ˣ + 1).",
-            listOf("16/15", "4/5", "2/15", "8/15"),
-            listOf("16/15", "4/5", "2/15", "8/15"), 3, "1/5+1/3",
-            listOf("3ˣ + 5⁻ˣ = (15ˣ + 1)/5ˣ, así que su raíz x-ésima es ˣ√(15ˣ + 1)/5.", "3⁻ˣ + 5ˣ = (15ˣ + 1)/3ˣ, raíz: ˣ√(15ˣ + 1)/3.", "E = 1/5 + 1/3 = 8/15."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_15", "alg", 3, "Las unidades que se ofrecen a precio x soles son f(x) = x² − bx + 10 (x ≥ 3). Se sabe que f(5) = α y f(10) = 10α. Si el precio fuese 35 soles, ¿cuántas unidades se ofrecerían?",
-            listOf("631", "847", "1025", "1015"),
-            listOf("631", "847", "1025", "1015"), 2, "subst(x^2-6*x+10,x=35)",
-            listOf("f(5) = 35 − 5b y f(10) = 110 − 10b = 10(35 − 5b).", "110 − 10b = 350 − 50b, b = 6.", "f(35) = 1225 − 210 + 10 = 1025."), "", "", "", emptyList(), "", 2023)
-    )) }
-    private fun exam1(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e23_16", "ineq", 3, "El total semanal de protectores debe ser menor que 427. Ya se distribuyeron 90 y quedan por distribuir más de los tres quintos del total, más 78. ¿Cuál es la cantidad mínima de protectores que se distribuyeron en la semana?",
-            listOf("421", "426", "424", "420"),
-            listOf("421", "426", "424", "420"), 0, "min(seq(when(t<427 and t-90>3*t/5+78,t,1000),t,400,430))",
-            listOf("T < 427 y T − 90 > (3/5)T + 78.", "(2/5)T > 168, T > 420.", "Entonces T ∈ {421, ..., 426}: el mínimo es 421."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_17", "ineq", 3, "Un comerciante tiene 3000 unidades a \$ 5 cada una; el próximo mes el precio subirá \$ 0,5. Quiere que el ingreso total por las 3000 unidades no sea menor que \$ 15 900. ¿Cuál es el ingreso máximo que puede obtener este mes por la venta del producto?",
-            listOf("\$ 5995", "\$ 6000", "\$ 6005", "\$ 4000"),
-            listOf("5995", "6000", "6005", "4000"), 1, "5*solve(5*x+11/2*(3000-x)=15900,x)[0]",
-            listOf("Si vende x este mes: 5x + 5,5(3000 − x) ≥ 15 900.", "16 500 − 0,5x ≥ 15 900, x ≤ 1200.", "Ingreso máximo de este mes: 1200 · 5 = 6000."), "", "", "", emptyList(), "El enunciado oficial dice “durante estos dos meses”, pero la clave (B) corresponde al ingreso del primer mes.", 2023),
-        BProb("e23_18", "alg", 2, "Si x es solución de (x + 2)/(x − 2) + (x − 2)/(x + 2) = 3, calcula x⁴ − 19x² + 18.",
-            listOf("−72", "38", "−42", "60"),
-            listOf("-72", "38", "-42", "60"), 1, "subst(t^2-19*t+18,t=solve((x+2)/(x-2)+(x-2)/(x+2)=3,x)[0]^2)",
-            listOf("Sumando: (2x² + 8)/(x² − 4) = 3, así 2x² + 8 = 3x² − 12, x² = 20.", "x⁴ − 19x² + 18 = 400 − 380 + 18 = 38."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_19", "geo", 3, "Una caja sin tapa de 26 250 cm³ se hace con una lámina rectangular cuyo largo es 45 cm más que su ancho, cortando cuadrados de 15 cm en las esquinas. Calcula el área de la lámina.",
-            listOf("5500 cm²", "3400 cm²", "4050 cm²", "6300 cm²"),
-            listOf("5500", "3400", "4050", "6300"), 0, "max(solve(15*(a-30)*(a+15)=26250,a))*(max(solve(15*(a-30)*(a+15)=26250,a))+45)",
-            listOf("Si el ancho es a: base (a − 30)(a + 15) y altura 15.", "15(a − 30)(a + 15) = 26 250, a² − 15a − 2200 = 0, a = 55.", "Lámina: 55 · 100 = 5500 cm²."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_20", "ecu", 2, "En la primera balanza, 2 cilindros equilibran a 2 cubos y 1 esfera. En la segunda, 3 cilindros y 1 cubo equilibran a 2 esferas. Si cada cilindro pesa 1 kg, ¿cuántos cubos pesan lo mismo que una esfera?",
-            listOf("8", "3", "7", "2"),
-            listOf("8", "3", "7", "2"), 0, "solve([2=2*c+e,3+c=2*e],[c,e])[0][1]/solve([2=2*c+e,3+c=2*e],[c,e])[0][0]",
-            listOf("2 = 2c + e y 3 + c = 2e.", "De la primera, e = 2 − 2c; en la segunda: 3 + c = 4 − 4c, c = 1/5, e = 8/5.", "e/c = 8 cubos."), "ex23_balanza", "", "", emptyList(), "", 2023),
-        BProb("e23_21", "geo", 2, "Una torta cilíndrica de 30 cm de diámetro y 10 cm de altura se divide en 20 porciones iguales. Si Sofía y sus 15 invitados comieron una porción cada uno, ¿qué volumen de torta sobró?",
-            listOf("600π cm³", "562,5π cm³", "500π cm³", "450π cm³"),
-            listOf("600*pi", "1125*pi/2", "500*pi", "450*pi"), 3, "pi*15^2*10*4/20",
-            listOf("Volumen: π · 15² · 10 = 2250π.", "Comieron 16 porciones; sobran 4 de 20.", "2250π · 4/20 = 450π cm³."), "cilindro", "", "", emptyList(), "", 2023),
-        BProb("e23_22", "geo", 3, "En un triángulo rectángulo ABC, un cateto mide 16 y la hipotenusa 20. Se inscribe un cuadrado de lado L con un vértice en el ángulo recto. Calcula la suma de las áreas de los triángulos que quedan dentro.",
-            listOf("2160/49", "48", "2400/49", "2592/49"),
-            listOf("2160/49", "48", "2400/49", "2592/49"), 2, "12*16/2-(12*16/(12+16))^2",
-            listOf("El otro cateto: √(400 − 256) = 12.", "Lado del cuadrado en el ángulo recto: L = (12 · 16)/(12 + 16) = 48/7.", "Área de los triángulos: 96 − (48/7)² = 96 − 2304/49 = 2400/49."), "ex23_cuadtri", "", "", emptyList(), "", 2023),
-        BProb("e23_23", "geo", 2, "En un triángulo rectángulo los catetos miden 2x − 1 y 2(x + 1), y la hipotenusa 3x. Halla el área.",
-            listOf("54", "35", "77", "43"),
-            listOf("54", "35", "77", "43"), 0, "(2*5-1)*(2*(5+1))/2",
-            listOf("(2x − 1)² + (2x + 2)² = 9x², x² − 4x − 5 = 0, x = 5.", "Catetos 9 y 12: área = 9 · 12/2 = 54."), "", "", "", emptyList(), "", 2023),
-        BProb("e23_24", "geo", 2, "En el triángulo ABC, AD es la altura (D en BC), BD = 2 y DC = 6. Calcula AC² − AB².",
-            listOf("32", "16", "40", "18"),
-            listOf("32", "16", "40", "18"), 0, "6^2-2^2",
-            listOf("Por Pitágoras: AC² = AD² + 36 y AB² = AD² + 4.", "AC² − AB² = 36 − 4 = 32."), "ex23_altura", "", "", emptyList(), "", 2023),
-        BProb("e23_25", "geo", 3, "ABCD es un cuadrado; la cochera interior deja un jardín de 2 m de ancho a los lados y arriba, con la entrada y salida abajo entre las esquinas de 2 m. Si el jardín tiene 130 m², halla el perímetro del jardín.",
-            listOf("122", "134", "92", "115"),
-            listOf("122", "134", "92", "115"), 1, "3*23+2+2+(23-2)+(23-4)+(23-2)",
-            listOf("Si el lado es L, la cochera mide (L − 4) por (L − 2).", "Jardín: L² − (L − 4)(L − 2) = 6L − 8 = 130, L = 23.", "Perímetro: borde exterior 23 + 23 + 23 + 2 + 2 = 73; borde interior 21 + 19 + 21 = 61; total 134 m."), "ex23_cochera", "", "", emptyList(), "", 2023),
-        BProb("e23_26", "geo", 2, "Dos círculos concéntricos de centro O; la cuerda AB del mayor es tangente al menor. Si el área de la corona es 64π m², halla AB.",
-            listOf("16 m", "14 m", "8 m", "8√2 m"),
-            listOf("16", "14", "8", "8*sqrt(2)"), 0, "2*sqrt(64)",
-            listOf("Corona: π(R² − r²). Por Pitágoras, R² − r² = (AB/2)².", "(AB/2)² = 64, AB/2 = 8, AB = 16."), "ex23_corona", "", "", emptyList(), "", 2023),
-        BProb("e23_27", "geo", 3, "El cuadrado ABCD tiene lado 4 cm. M es el punto medio de BC, N el punto medio de AM y P el punto medio de NC. Calcula el área del cuadrilátero ANPD.",
-            listOf("7 cm²", "8 cm²", "9 cm²", "6 cm²"),
-            listOf("7", "8", "9", "6"), 0, "abs((0*1-2*0)+(2*5/2-3*1)+(3*4-0*5/2)+(0*0-0*4))/2",
-            listOf("Coordenadas: A(0,0), B(4,0), C(4,4), D(0,4); M(4,2), N(2,1), P(3; 2,5).", "Fórmula del área por coordenadas (método del zapato): 14/2 = 7 cm²."), "ex23_anpd", "", "", emptyList(), "", 2023),
-        BProb("e23_28", "geo", 3, "Las rectas L₁ y L₂ son paralelas; BC y BA son bisectrices de los ángulos NCQ y MAQ; el ángulo CQA mide 90° y N, B, M están alineados. Si el ángulo NBC mide 40°, halla el ángulo MBA.",
-            listOf("50°", "40°", "95°", "100°"),
-            listOf("50", "40", "95", "100"), 2, "180-40-90/2",
-            listOf("Si NCB = BCQ = α y MAB = BAQ = β, por el zigzag entre paralelas: 2α + 2β = 90°, α + β = 45°.", "Igual en B: CBA = α + β = 45°.", "Como N, B, M están alineados: MBA = 180° − 40° − 45° = 95°."), "ex23_zigzag", "", "", emptyList(), "", 2023),
-        BProb("e23_29", "geo", 1, "En un triángulo rectángulo ABC (recto en B), la altura relativa a la hipotenusa determina segmentos de 4 y 9 cm. Calcula el área.",
-            listOf("39", "52", "42", "45"),
-            listOf("39", "52", "42", "45"), 0, "13*sqrt(4*9)/2",
-            listOf("h² = 4 · 9 = 36, h = 6.", "Hipotenusa 13: área = 13 · 6/2 = 39."), "recth", "", "", emptyList(), "El enunciado oficial dice “la suma relativa”; se refiere a la altura relativa.", 2023),
-        BProb("e23_30", "trig", 3, "En el triángulo ABC se traza la mediana BM. El ángulo BAM mide α, el ángulo BMA 45°, el ángulo MBC α y el ángulo exterior en B (entre la prolongación de AB y BC) mide 45°. Halla x = ángulo BCA.",
-            listOf("25°", "30°", "15°", "10°"),
-            listOf("25", "30", "15", "10"), 2, "45-30",
-            listOf("Ángulo ABC = 135°, por eso x = 45° − α.", "Ley de senos en ABM y BMC con AM = MC: sen(45° + α)·sen(45° − α) = sen²α.", "Eso da cos 2α = 1/2, α = 30° y x = 15°."), "ex23_mediana", "", "", emptyList(), "", 2023)
-    )) }
-    private fun exam2(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e24_01", "frac", 1, "Resuelve π − 1/2 (π = 3,141592653...). ¿Cuál afirmación es correcta?",
-            listOf("Es 2,641 aproximado a las milésimas.", "Es 2,65 aproximado a las centésimas.", "Es 2,642 aproximado a las milésimas.", "Es 2,64 aproximado a las décimas."),
-            listOf(), 2, "",
-            listOf("π − 0,5 = 2,64159...", "A las milésimas: 2,642 (la cifra siguiente, 5, redondea hacia arriba)."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_02", "arit", 1, "La luz recorre 9000 × 10⁹ m a 300 × 10⁶ m/s. ¿Cuál es el tiempo en segundos, en notación científica?",
-            listOf("3 × 10⁴", "30 × 10³", "6 × 10⁴", "30 × 10⁻³"),
-            listOf(), 0, "",
-            listOf("t = d/v = 9000 × 10⁹ / (300 × 10⁶) = 30 × 10³ s.", "En notación científica: 3 × 10⁴ (30 × 10³ no lo es)."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_03", "ecu", 1, "Dada x² + 80 = 21x, halla el menor valor de x.",
-            listOf("−16", "−5", "4", "5"),
-            listOf("-16", "-5", "4", "5"), 3, "min(solve(x^2+80=21*x,x))",
-            listOf("x² − 21x + 80 = 0 = (x − 5)(x − 16).", "Raíces 5 y 16: la menor es 5."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_04", "porc", 1, "Elsa presta S/ 500 a Carlos al 8% mensual de interés simple. Después de 2 meses, ¿cuánto devolvió Carlos en total?",
-            listOf("S/ 40", "S/ 80", "S/ 516", "S/ 580"),
-            listOf("40", "80", "516", "580"), 3, "500+500*8/100*2",
-            listOf("I = 500 · 0,08 · 2 = 80.", "Total: 500 + 80 = 580."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_05", "suc", 1, "Un cuadrado se divide en dos partes iguales y la acción se repite en cada parte. ¿En cuántas partes quedará dividido en la acción 8?",
-            listOf("8", "16", "256", "512"),
-            listOf("8", "16", "256", "512"), 2, "2^8",
-            listOf("Cada acción duplica las partes: 2, 4, 8, ...", "Acción 8: 2⁸ = 256."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_06", "geo", 1, "Un tablero de mesa con forma de cuadrilátero tiene un par de lados paralelos y sus diagonales iguales. ¿Qué cuadrilátero es?",
-            listOf("Trapecio rectángulo", "Trapecio isósceles", "Trapecio escaleno", "Trapezoide"),
-            listOf(), 1, "",
-            listOf("El trapecio con diagonales iguales es el trapecio isósceles."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_07", "prob", 1, "Martha lanza una moneda tres veces. ¿Cuántas formas tiene de obtener al menos una cara?",
-            listOf("1", "3", "7", "6"),
-            listOf("1", "3", "7", "6"), 2, "2^3-1",
-            listOf("Total: 2³ = 8; sin ninguna cara: 1 (sello, sello, sello).", "Al menos una cara: 8 − 1 = 7."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_08", "alg", 3, "Abel y Benjamín tienen 2 y 270 fichas. En cada partida que gana Abel, su cantidad de fichas se eleva al cuadrado (Benjamín le entrega lo necesario). Abel ganó las tres partidas siguientes y el juego terminó. ¿Cuántas fichas tuvo Abel al final?",
-            listOf("2⁴", "2⁶", "2⁸", "2¹⁶"),
-            listOf("2^4", "2^6", "2^8", "2^16"), 2, "((2^2)^2)^2",
-            listOf("2 → 2² = 4 → 4² = 16 → 16² = 256.", "256 = 2⁸ (Benjamín queda con 272 − 256 = 16 y no puede seguir)."), "", "", "", emptyList(), "Se interpreta como lo hace la clave oficial: cada victoria eleva al cuadrado la cantidad de Abel.", 2024),
-        BProb("e24_09", "ecu", 1, "Una parrillada tiene un costo fijo de S/ 1400 y cada parrillada cuesta S/ 8. ¿Qué función da el monto total M según la cantidad x de parrilladas?",
-            listOf("M(x) = 1400", "M(x) = 8x", "M(x) = 1400 + 8x", "M(x) = 1400 + x"),
-            listOf(), 2, "",
-            listOf("Costo total = costo fijo + costo por unidad · cantidad = 1400 + 8x."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_10", "prop", 1, "Tiempos de entrenamiento: Cristhian 15 000 m en 45 min; Lucía 1200 m en 3 min 20 s; Sofía 4200 m en 15 min; Raúl 10 800 m en 2400 s. ¿Quién tiene la mayor rapidez?",
-            listOf("Cristhian", "Lucía", "Sofía", "Raúl"),
-            listOf(), 1, "",
-            listOf("En m/s: Cristhian 15 000/2700 ≈ 5,56; Lucía 1200/200 = 6; Sofía 4200/900 ≈ 4,67; Raúl 10 800/2400 = 4,5.", "La mayor es la de Lucía."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_11", "frac", 1, "Un envase tiene 1000 ml de alcohol y 400 ml de agua. ¿Qué afirmación es correcta?",
-            listOf("Alcohol : agua = 4/10", "El alcohol es 5/7 del total", "El agua es 5/2 del total", "Agua : alcohol = 2/7"),
-            listOf(), 1, "",
-            listOf("Total: 1400 ml. Alcohol: 1000/1400 = 5/7.", "Alcohol : agua = 5/2 y agua : alcohol = 2/5."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_12", "ineq", 1, "Si A = [−1/2; 1/2] y B = ]−1/4; 1/4[, ¿cuál es A ∩ B?",
-            listOf("[−1/4; 1/4]", "[−1/2; 1/4[", "]−1/4; 1/4[", "]−1/4; 1/2]"),
-            listOf(), 2, "",
-            listOf("B está contenido en A, así que la intersección es B: ]−1/4; 1/4[."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_13", "prop", 2, "Una bolsa de comida dura 10 días para 20 aves, 5 días para 40, 4 días para 50 y 2 días para 100. ¿Qué expresión da los días x para 25 aves?",
-            listOf("50 + 4 = 25 + x", "40 − 5 = 25 − x", "100/2 = 25/x", "(20)(10) = (25)(x)"),
-            listOf(), 3, "",
-            listOf("Aves y días son inversamente proporcionales: aves · días = constante = 200.", "20 · 10 = 25 · x (x = 8 días)."), "", "", "", listOf(listOf("Aves", "20", "40", "50", "100", "25"), listOf("Días", "10", "5", "4", "2", "x")), "", 2024),
-        BProb("e24_14", "porc", 2, "Tienda 1: 40% de descuento + 10% adicional en efectivo. Tienda 2: 30% de descuento + 20% adicional en efectivo. Mismo precio de etiqueta. ¿Qué afirmación es correcta?",
-            listOf("Da igual: ambas descuentan 50%.", "Tienda 2: descuentos de 54% y 56%.", "Tienda 1: descuento total 46% contra 44% de la tienda 2.", "Tienda 2: descuentos de 4% y 6%."),
-            listOf(), 2, "",
-            listOf("Tienda 1: paga 0,6 · 0,9 = 0,54: descuento 46%.", "Tienda 2: paga 0,7 · 0,8 = 0,56: descuento 44%. Conviene la tienda 1."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_15", "est", 2, "La gráfica muestra la temperatura promedio diaria de febrero en Arequipa. ¿Qué conclusión es correcta?",
-            listOf("El día 21 hubo el doble que el día 11.", "La más baja fue al inicio del mes.", "El día 23 fue aproximadamente 30 °C.", "En cuatro días la temperatura fue 20 °C."),
-            listOf(), 3, "",
-            listOf("La curva cruza la línea de 20 °C cuatro veces.", "La más baja es al final del mes (≈ 6 °C) y el día 23 está cerca de 31 °C."), "ex24_temp", "", "", emptyList(), "", 2024)
-    )) }
-    private fun exam3(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e24_16", "ecu", 1, "Se recaudó S/ 3360 para alquilar 16 buses: con aire acondicionado a S/ 300 y sin aire a S/ 180. Si 180x + 300y = 3360 y x + y = 16, ¿cuántos buses con aire se alquilan?",
-            listOf("12", "10", "4", "1"),
-            listOf("12", "10", "4", "1"), 2, "linsolve([180*x+300*y=3360,x+y=16],[x,y])[1]",
-            listOf("180(16 − y) + 300y = 3360, 120y = 480, y = 4."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_17", "trig", 3, "Con un teodolito de 1,8 m se mide desde A un ángulo de elevación de 64° a la cima; avanzando 140 m hasta B, el ángulo es 76°. Si cot 64° = 0,5 y tan 76° = 4, ¿cuál es la altura de la montaña?",
-            listOf("70 m", "71,80 m", "560 m", "561,8 m"),
-            listOf("70", "359/5", "560", "2809/5"), 3, "4*140+18/10",
-            listOf("Desde B: h = 4d. Desde A: (140 + d)/h = 0,5.", "140 + d = 2d, d = 140, h = 560 m sobre el teodolito.", "Altura: 560 + 1,8 = 561,8 m."), "ex24_montana", "", "", emptyList(), "", 2024),
-        BProb("e24_18", "geo", 2, "Las varillas de una llanta forman un polígono regular inscrito. θ es el ángulo central y α el ángulo interior del polígono. ¿Qué afirmación es correcta?",
-            listOf("Si la varilla mide igual que el radio, es un pentágono.", "Si θ = 30°, es un hexágono.", "Si α = 135°, es un octógono.", "Si α = 72°, es un pentágono."),
-            listOf(), 2, "",
-            listOf("Lado = radio corresponde a un hexágono; θ = 30° da 12 lados.", "Ángulo interior 135°: 180(n − 2)/n = 135, n = 8. (El pentágono tiene 108°.)"), "ex24_llanta", "", "", emptyList(), "", 2024),
-        BProb("e24_19", "prob", 2, "Bolas 1 a 15; premios: par menor que 8 o impar mayor que 7: S/ 1; par mayor que 6: S/ 2; impar menor que 9: S/ 8; par mayor que 14: S/ 1000. Cada jugada cuesta S/ 5. ¿Qué afirmación es FALSA?",
-            listOf("Es seguro recibir al menos S/ 20 en 10 jugadas.", "Es posible perder S/ 3 en una jugada.", "Es imposible ganar S/ 1000 en una jugada.", "Es seguro reclamar al menos S/ 1 por jugada."),
-            listOf(), 0, "",
-            listOf("El premio mínimo es S/ 1: en 10 jugadas se asegura solo S/ 10.", "Con premio S/ 2 se pierde 5 − 2 = 3; no hay par mayor que 14 hasta el 15."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_20", "geo", 2, "Tres edificios A, B y C: AB = 72 m, BC = 96 m, AC = 120 m. El local estará a la misma distancia de los tres. ¿A qué distancia?",
-            listOf("36 m", "40 m", "48 m", "60 m"),
-            listOf("36", "40", "48", "60"), 3, "120/2",
-            listOf("72² + 96² = 120²: el triángulo es rectángulo.", "El punto equidistante es el circuncentro, en el punto medio de la hipotenusa: 120/2 = 60 m."), "circuncirculo", "", "", emptyList(), "", 2024),
-        BProb("e24_21", "est", 2, "Producción de gas (MMPCD) 2004 a 2013: % Camisea/Total: 23, 50, 60, 73, 77, 81, 92, 94, 95, 97. Total país: 83, 145, 172, 259, 328, 336, 699, 1033, 1144, 1180. Camisea: 19, 73, 103, 189, 254, 273, 640, 972, 1083, 1139. ¿Qué conclusión es correcta?",
-            listOf("El % de Camisea se incrementa a más del doble de 2004 a 2005.", "El mayor crecimiento anual del total es de 2010 a 2011.", "El mayor crecimiento de Camisea es de 2012 a 2013.", "De 2006 a 2009 Camisea y el total crecen igual."),
-            listOf(), 0, "",
-            listOf("23% → 50%: 50 > 2 · 23 = 46.", "El total crece 363 de 2009 a 2010, más que los 334 de 2010 a 2011.", "2006 a 2009: Camisea +170 y total +164."), "ex24_gas", "", "", emptyList(), "", 2024),
-        BProb("e24_22", "geo", 3, "Un terreno triangular de lados 300, 400 y 500 m se divide en dos regiones de igual área con una valla recta desde el vértice opuesto al lado de 400 m. ¿Cuánto mide la valla?",
-            listOf("200 m", "300 m", "100√13 m", "50√73 m"),
-            listOf("200", "300", "100*sqrt(13)", "50*sqrt(73)"), 2, "sqrt(300^2+200^2)",
-            listOf("Igual área: la valla es la mediana hacia el lado de 400.", "El triángulo es rectángulo (300² + 400² = 500²); la mediana va del vértice al punto medio del cateto de 400: √(300² + 200²) = √130 000 = 100√13."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_23", "ecu", 1, "Seis hermanos iban a repartirse una herencia, pero dos renunciaron; así, cada uno de los restantes recibió S/ 20 000 más. ¿Qué expresión permite calcular lo que recibió cada uno?",
-            listOf("6x = 4(x − 20 000)", "6x = 4(x + 20 000)", "6(x − 20 000) = 4x", "6x − 20 000 = 4x"),
-            listOf(), 1, "",
-            listOf("Si x es lo que recibiría cada uno entre 6, la herencia es 6x = 4(x + 20 000)."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_24", "alg", 2, "La altura de una piedra es f(t) = 1 + 10t − 5t² (m) respecto a la losa. ¿Qué gráfica la representa?",
-            listOf("Empieza en 1, máximo 6 en t = 1 y llega a 0 en t ≈ 2,1", "Empieza en 0, máximo 5 en t = 2 y baja hasta −3", "Empieza en 0, máximo 5 en t = 1 y llega a 0 en t = 2", "Empieza en 1, máximo 6 en t = 1 y sigue bajando hasta −2"),
-            listOf(), 0, "",
-            listOf("f(0) = 1; vértice en t = 1, f(1) = 6.", "Llega a la losa cuando f(t) = 0, en t ≈ 2,1; la altura no puede ser negativa."), "ex24_graficas", "", "", emptyList(), "", 2024),
-        BProb("e24_25", "geo", 2, "Un tanque es un cilindro de 2 m de altura y 1 m de diámetro unido a un cono. ¿Qué altura debe tener el cono para que su volumen sea la mitad del cilindro?",
-            listOf("1 m", "2 m", "3 m", "6 m"),
-            listOf("1", "2", "3", "6"), 2, "solve(pi*(1/2)^2*h/3=pi*(1/2)^2*2/2,h)[0]",
-            listOf("Cilindro: π · 0,5² · 2 = 0,5π.", "Cono: π · 0,5² · h/3 = 0,25π, h = 3 m."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_26", "est", 2, "Ingresos de recién egresados: [1000; 1500⟩ f = 12; [1500; 2000⟩ f = 40; [2000; 2500⟩ F = 60; [2500; 3000⟩ f = 10; [3000; 3500⟩ F = 80. ¿Cuántos ganan entre S/ 2000 y S/ 3500?",
-            listOf("18", "20", "28", "30"),
-            listOf("18", "20", "28", "30"), 2, "80-52",
-            listOf("F: 12, 52, 60, 70, 80; f: 12, 40, 8, 10, 10.", "Entre 2000 y 3500: 8 + 10 + 10 = 28 (o 80 − 52)."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_27", "geo", 2, "Dos piscinas circulares tangentes exteriores: el radio de la grande es igual al diámetro de la pequeña (radio R). El puente va por la cuerda de la grande que pasa por su centro y se prolonga hasta el centro de la pequeña. ¿Cuánto mide en función de R?",
-            listOf("3R", "5R", "6R", "9R"),
-            listOf("3", "5", "6", "9"), 1, "4+1",
-            listOf("Radio grande: 2R; su diámetro: 4R.", "Del extremo opuesto al centro pequeño: 4R + R = 5R."), "ex24_piscinas", "", "", emptyList(), "", 2024),
-        BProb("e24_28", "est", 1, "40 estudiantes: 16 años (10), 17 (12), 18 (14), 19 (4). ¿Cuál es el promedio de edades?",
-            listOf("9,89", "17,30", "17,50", "18"),
-            listOf("989/100", "173/10", "35/2", "18"), 1, "(16*10+17*12+18*14+19*4)/40",
-            listOf("(16·10 + 17·12 + 18·14 + 19·4)/40 = 692/40 = 17,3."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_29", "alg", 2, "Un material se descompone 50% por año: la fracción que queda tras x años es y = 2⁻ˣ. ¿Qué afirmación es correcta?",
-            listOf("A los 2 años queda 3/4.", "A los 3 años queda 1/8.", "A los 4 años se descompuso 1/16.", "A los 5 años se descompuso 1/32."),
-            listOf(), 1, "",
-            listOf("Queda 2⁻³ = 1/8 a los 3 años.", "A los 2 años queda 1/4; a los 4 se descompuso 15/16."), "", "", "", emptyList(), "", 2024),
-        BProb("e24_30", "ineq", 1, "Halla el conjunto solución de 0 < 3 − x ≤ 4.",
-            listOf("]−3; 1]", "]−1; 3]", "[−1; 3[", "[1; 3["),
-            listOf(), 2, "",
-            listOf("Restando 3: −3 < −x ≤ 1. Multiplicando por −1 se invierten: −1 ≤ x < 3."), "", "", "", emptyList(), "", 2024)
-    )) }
-    private fun exam4(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e25_01", "alg", 2, "Cada bolsa tiene 2⁵ × 3³ pernos; cada paquete 2⁴ × 3 bolsas; cada caja 2² × 3² paquetes. ¿Cuántos pernos hay en 2 cajas?",
-            listOf("2¹¹ × 3⁶", "2¹¹ × 3⁵", "2¹² × 3⁶", "2² × 3¹⁸"),
-            listOf("2^11*3^6", "2^11*3^5", "2^12*3^6", "2^2*3^18"), 2, "2*(2^2*3^2)*(2^4*3)*(2^5*3^3)",
-            listOf("2 · (2²·3²) · (2⁴·3) · (2⁵·3³).", "Exponentes de 2: 1 + 2 + 4 + 5 = 12; de 3: 2 + 1 + 3 = 6."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_02", "porc", 1, "María presta S/ 500 al 40% anual de interés simple por 6 meses. ¿Qué monto le devolverán?",
-            listOf("S/ 600", "S/ 620", "S/ 740", "S/ 524"),
-            listOf("600", "620", "740", "524"), 0, "500+500*40/100*6/12",
-            listOf("I = 500 · 0,40 · 6/12 = 100. Monto: 600."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_03", "arit", 1, "Un árbol que crece menos de 15 cm al año requiere fertilización. Hace un año medía 6 m y creció 12 cm. ¿Qué reportará la bióloga?",
-            listOf("No requiere: mide 6,12 m.", "Requiere: mide menos de 6,15 m.", "No requiere: creció 12 cm.", "Requiere: mide más de 6,15 m."),
-            listOf(), 1, "",
-            listOf("Creció 12 cm < 15 cm, es decir, mide 6,12 m < 6,15 m: requiere fertilización."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_04", "frac", 1, "Si √5 = 2,2360679774..., ¿cuál es su valor aproximado a las centésimas?",
-            listOf("2,2", "2,24", "2,23", "2,236"),
-            listOf(), 1, "",
-            listOf("2,236 a las centésimas: la cifra siguiente es 6, redondea hacia arriba: 2,24."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_05", "arit", 1, "La masa del átomo de hierro es 166 × 10⁻²⁹ kg. ¿Cuál es en notación científica?",
-            listOf("1,66 × 10⁻²⁷ kg", "0,166 × 10⁻²⁸ kg", "1,66 × 10⁻²⁹ kg", "16,6 × 10⁻²⁶ kg"),
-            listOf(), 0, "",
-            listOf("166 = 1,66 × 10²: 1,66 × 10² × 10⁻²⁹ = 1,66 × 10⁻²⁷."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_06", "frac", 1, "Se sirvieron 3 vasos de agua y 5 de limonada. ¿Qué afirmación es correcta?",
-            listOf("Agua es 3/8 de la limonada", "Agua es 5/3 de la limonada", "Agua es 8/3 de la limonada", "Agua es 3/5 de la limonada"),
-            listOf(), 3, "",
-            listOf("Agua/limonada = 3/5."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_07", "ineq", 2, "Sean A = [−2; 2[ y B = ]−1; +∞[. ¿Cuál es (A − B) ∪ (B − A)?",
-            listOf("[−2; −1] ∪ [2; +∞[", "]−2; −1[ ∪ ]2; +∞[", "]−2; −1[ ∪ [−1; +∞[", "[−2; −1] ∪ [1; +∞["),
-            listOf(), 0, "",
-            listOf("A − B: lo de A que no está en B: [−2; −1].", "B − A: lo de B que no está en A: [2; +∞[ (el 2 no está en A)."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_08", "porc", 2, "Un televisor cuesta S/ 2500. Tienda A: 20% + 12% adicional. Tienda B: 26% + 5% adicional. ¿Dónde conviene y por qué?",
-            listOf("En A, por sus descuentos de 20% y 12%.", "En B, porque el descuento total es 31%.", "En A, porque el precio es menor.", "En B, porque el precio es menor."),
-            listOf(), 3, "",
-            listOf("A: 2500 · 0,80 · 0,88 = 1760.", "B: 2500 · 0,74 · 0,95 = 1757,50. B es más barato (su descuento real es 29,7%, no 31%)."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_09", "prop", 1, "Platos (x): 3, 9, 12, 15; precios (y): 18, 54, 72, 90. ¿Qué expresión los relaciona?",
-            listOf("y = 6/x", "y = 6x", "y = 6 + x", "x = 6y"),
-            listOf(), 1, "",
-            listOf("Cada precio es 6 veces la cantidad: y = 6x."), "", "", "", listOf(listOf("x", "3", "9", "12", "15"), listOf("y", "18", "54", "72", "90")), "", 2025),
-        BProb("e25_10", "ecu", 2, "Joaquín vende chocolates a S/ 2 y Pedro a S/ 3. Juntos obtuvieron S/ 55 y Joaquín vendió 10 chocolates más que Pedro. ¿Cuánto obtuvo Pedro?",
-            listOf("S/ 11", "S/ 21", "S/ 33", "S/ 34"),
-            listOf("11", "21", "33", "34"), 1, "3*solve(2*(p+10)+3*p=55,p)[0]",
-            listOf("2(p + 10) + 3p = 55, p = 7.", "Pedro: 3 · 7 = 21."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_11", "ecu", 1, "Carlos compra casacas a S/ 45 cada una y paga S/ 35 por el envío. ¿Qué expresión relaciona el número x de casacas con el monto y?",
-            listOf("y = 35x", "y = 45x", "y = 35x + 45", "y = 45x + 35"),
-            listOf(), 3, "",
-            listOf("Costo variable 45x más costo fijo 35."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_12", "alg", 2, "La altura de una pelota sigue una parábola que sale del suelo, llega a 9 m a los 3 s y cae a los 6 s. ¿Qué afirmación es correcta?",
-            listOf("La altura máxima es 6 m.", "La pelota alcanza dos veces la altura de 8 m.", "Demora 7 s en llegar al suelo.", "Alcanza una vez la altura de 5 m."),
-            listOf(), 1, "",
-            listOf("h(t) = −t² + 6t: máximo 9 m y cae a los 6 s.", "h = 8 en t = 2 y t = 4: dos veces."), "ex25_pelota", "", "", emptyList(), "", 2025),
-        BProb("e25_13", "ecu", 1, "En (x + 2)(x + 3) = 12, ¿qué conjunto incluye las soluciones?",
-            listOf("{10, 9}", "{−6, −4}", "{−6, 1, 3}", "{−6, −1, 2}"),
-            listOf(), 2, "",
-            listOf("x² + 5x − 6 = 0 = (x + 6)(x − 1): soluciones −6 y 1."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_14", "suc", 1, "En 5; 8; 11; 14; ..., ¿cuál es la suma de los 9 primeros términos?",
-            listOf("17", "29", "136", "153"),
-            listOf("17", "29", "136", "153"), 3, "sum(5+3*(k-1),k,1,9)",
-            listOf("a₉ = 5 + 8 · 3 = 29.", "S = (5 + 29) · 9/2 = 153."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_15", "ecu", 2, "Con billetes de S/ 10 (x) y S/ 20 (y) se pagó S/ 990, y los de S/ 20 exceden en 15 a los de S/ 10. ¿Cuántos billetes hay en total?",
-            listOf("38", "59", "61", "71"),
-            listOf("38", "59", "61", "71"), 2, "sum(linsolve([10*x+20*y=990,y-x=15],[x,y]))",
-            listOf("10x + 20y = 990 y y − x = 15: 30x + 300 = 990, x = 23, y = 38.", "Total: 61."), "", "", "", emptyList(), "", 2025)
-    )) }
-    private fun exam5(l: MutableList<BProb>) { l.addAll(listOf(
-        BProb("e25_16", "ineq", 1, "Resuelve 3(x + 2) − 3 < 9.",
-            listOf("x < 2", "x > 2", "x < 4", "x > 3"),
-            listOf(), 0, "",
-            listOf("3x + 3 < 9, 3x < 6, x < 2."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_17", "alg", 2, "Unas bacterias siguen f(x) = 120 · 2ˣ, con x en periodos de 3 horas. Sofía dice que a las 15 horas hay 15 × 120 bacterias. ¿Es verdad?",
-            listOf("Falso: deben ser 32 veces las iniciales.", "Verdad: cada 3 horas aumentan 120.", "Falso: se multiplican 10 veces en 15 horas.", "Verdad: se duplican y son 15 veces las iniciales."),
-            listOf(), 0, "",
-            listOf("15 horas = 5 periodos: 120 · 2⁵ = 32 · 120."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_18", "est", 2, "Ventas de una crema por semana (x, y): (0,0), (1,6), (2,14), (3,24), (4,36), (5,50), (6,66), (7,84), (8,104), (9,126), (10,150), (11,176), (12,204). ¿Qué afirmación NO es válida?",
-            listOf("La función es creciente.", "El máximo volumen de ventas es 204.", "Desde la semana 7 se cumple f(x) = 12x.", "Semanas y cremas son enteros exactos."),
-            listOf(), 2, "",
-            listOf("f(7) = 84 = 12 · 7, pero f(8) = 104 ≠ 96: no se cumple desde la semana 7.", "Los datos siguen f(x) = x² + 5x."), "ex25_cremas", "", "", emptyList(), "", 2025),
-        BProb("e25_19", "geo", 2, "Un tanque cilíndrico (r = 0,5 m, h = 1,2 m) está lleno hasta la mitad. Mateo necesita 3/4 de la capacidad. ¿Qué debe hacer para saber cuánta agua le falta?",
-            listOf("Volumen con altura de 0,6 m", "Altura que debió alcanzar el agua", "Volumen con altura de 0,3 m", "Volumen del tanque menos lo recolectado"),
-            listOf(), 2, "",
-            listOf("Tiene hasta 0,6 m y necesita 0,9 m: falta una capa de 0,3 m de altura.", "V = π · 0,5² · 0,3."), "cilindro", "", "", emptyList(), "", 2025),
-        BProb("e25_20", "geo", 3, "Un vivero es un cubo de arista 2 m con una pirámide encima; las aristas laterales de la pirámide miden √5 m. Se usan tubos en todas las aristas y en las dos diagonales de cada cara lateral izquierda y derecha (4 diagonales). ¿Cuántos metros de tubo se necesitan?",
-            listOf("24 + 4√2 + 4√5", "12 + 8√2 + 4√5", "20 + 4√2 + 4√5", "24 + 8√2 + 4√5"),
-            listOf("24+4*sqrt(2)+4*sqrt(5)", "12+8*sqrt(2)+4*sqrt(5)", "20+4*sqrt(2)+4*sqrt(5)", "24+8*sqrt(2)+4*sqrt(5)"), 3, "24+4*2*sqrt(2)+4*sqrt(5)",
-            listOf("Cubo: 12 aristas · 2 = 24 m.", "Diagonales: 4 · 2√2 = 8√2 m.", "Pirámide: 4 aristas laterales · √5 = 4√5 m (su base coincide con la cara superior del cubo)."), "ex25_vivero", "", "", emptyList(), "", 2025),
-        BProb("e25_21", "geo", 1, "Tres caseríos forman un triángulo y la posta debe estar a igual distancia de los tres. ¿En qué punto notable?",
-            listOf("Incentro", "Circuncentro", "Baricentro", "Ortocentro"),
-            listOf(), 1, "",
-            listOf("El circuncentro equidista de los tres vértices (corte de mediatrices)."), "mediatriz", "", "", emptyList(), "", 2025),
-        BProb("e25_22", "geo", 1, "Un jardín en forma de rombo se divide con dos cercas que unen vértices opuestos. Si una región mide 90 m², ¿cuál es el área total?",
-            listOf("90 m²", "180 m²", "360 m²", "720 m²"),
-            listOf("90", "180", "360", "720"), 2, "4*90",
-            listOf("Las diagonales dividen al rombo en 4 triángulos iguales: 4 · 90 = 360."), "rombo", "", "", emptyList(), "", 2025),
-        BProb("e25_23", "geo", 2, "Una torta circular tiene 8 fresas igualmente espaciadas en el borde; la mayor distancia entre dos fresas es 24 cm. ¿Qué perímetro debe tener la base de una caja cuadrada donde entre exactamente?",
-            listOf("24 cm", "48 cm", "96 cm", "144 cm"),
-            listOf("24", "48", "96", "144"), 2, "4*24",
-            listOf("La mayor distancia es el diámetro: 24 cm = lado de la caja.", "Perímetro: 4 · 24 = 96 cm."), "circinscrita", "", "", emptyList(), "", 2025),
-        BProb("e25_24", "trig", 3, "Un observador a 2√3 km de la base de lanzamiento ve el cohete a 2 km de altura con ángulo de 30°; luego lo ve con 60°. ¿Qué distancia h recorrió entre ambos momentos?",
-            listOf("2 km", "4 km", "6 km", "8 km"),
-            listOf("2", "4", "6", "8"), 1, "2*sqrt(3)*tan(pi/3)-2",
-            listOf("Altura con 60°: 2√3 · tan 60° = 2√3 · √3 = 6 km.", "h = 6 − 2 = 4 km."), "ex25_cohete", "", "", emptyList(), "", 2025),
-        BProb("e25_25", "geo", 2, "En el hexágono regular ABCDEF de centro O: Pedro recorre ABOD, Luis ABED y Max ABOCD. ¿Qué afirmación es correcta?",
-            listOf("Max recorre más que Luis.", "Pedro recorre igual que Luis.", "Max recorre menos que Pedro.", "Luis recorre igual que Max."),
-            listOf(), 3, "",
-            listOf("Con lado l (igual al radio): Pedro l + l + l = 3l.", "Luis: l + 2l + l = 4l (BE es diámetro). Max: l + l + l + l = 4l."), "hexinscrito", "", "", emptyList(), "", 2025),
-        BProb("e25_26", "prob", 1, "Una bolsa tiene tarjetas con 2, 3, 5, 7, 11, 13, 17 y 19. ¿Probabilidad de sacar un número primo?",
-            listOf("7/8", "4/8", "1", "0"),
-            listOf(), 2, "",
-            listOf("Todas las tarjetas son primos: suceso seguro, P = 1."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_27", "est", 2, "Datos: 1250, 1999, 2000, 2500, 1000, 2800, 2700, 2499, 2300, 1499, 2350, 2010, 1690, 1400, 2999, 2600, 1480, 1500, 1800, 2400. ¿Qué frecuencias tienen [1000; 1500⟩, [1500; 2000⟩, [2000; 2500⟩ y [2500; 3000⟩?",
-            listOf("5, 4, 6, 5", "4, 5, 6, 5", "5, 4, 5, 6", "4, 5, 5, 6"),
-            listOf(), 0, "",
-            listOf("[1000; 1500⟩: 1250, 1000, 1499, 1400, 1480 = 5.", "[1500; 2000⟩: 1999, 1690, 1500, 1800 = 4. [2000; 2500⟩: 2000, 2499, 2300, 2350, 2010, 2400 = 6. [2500; 3000⟩: 5."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_28", "prob", 1, "Frasco 1: 6 rojos, 1 verde, 5 blancos. Frasco 2: 7 rojos, 1 verde, 1 blanco. Frasco 3: 1 verde, 9 rojos, 18 blancos. Se juntan y se extrae uno. ¿Qué es correcto?",
-            listOf("Es posible sacar uno azul.", "Es seguro sacar uno blanco.", "Es imposible sacar uno verde.", "Es posible sacar uno rojo."),
-            listOf(), 3, "",
-            listOf("Hay caramelos rojos (22): es posible sacar uno rojo. No hay azules y hay verdes."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_29", "est", 1, "Puntos en 5 partidos: Dilan 12, 20, 10, 10, 12; Jacob 14, 16, 8, 12, 12. El entrenador elige por promedio. ¿A quién y por qué?",
-            listOf("Dilan: 20 puntos en el 2.º partido.", "Jacob: mismo puntaje en dos partidos.", "Dilan: su promedio es mayor.", "Jacob: mejor en los dos últimos."),
-            listOf(), 2, "(12+20+10+10+12)/5-(14+16+8+12+12)/5",
-            listOf("Dilan: 64/5 = 12,8. Jacob: 62/5 = 12,4."), "", "", "", emptyList(), "", 2025),
-        BProb("e25_30", "est", 2, "Niveles de logro (C, B, A, AD). Sección A: 6, 10, 12, 2. Sección B: 5, 11, 10, 4. ¿Qué afirmación NO es válida?",
-            listOf("A + AD es igual en ambas secciones.", "En total hay menos en B que en A.", "En la sección B, los que no llegan a A superan a los de la sección A.", "Los de A o B son más en la sección A."),
-            listOf(), 2, "",
-            listOf("A + AD: 14 y 14. B: 21 < A: 22. A o B: 22 contra 21.", "Sin llegar a A: sección B 5 + 11 = 16 y sección A 6 + 10 = 16: son iguales, no mayor."), "ex25_barras", "", "", emptyList(), "", 2025)
     )) }
 }

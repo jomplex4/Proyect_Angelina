@@ -136,6 +136,7 @@ class MainViewModel : ViewModel() {
     fun becaSim(limitMin: Int, level: Int = 0) = becaStart(Beca.simulacro(System.currentTimeMillis(), level), true, if (level == 0) "Simulacro" else "Simulacro nivel $level", limitMin)
     /** Examen oficial de un año: como práctica (se corrige al instante) o como examen (al terminar). */
     fun becaExam(year: Int, asExam: Boolean, limitMin: Int) = becaStart(Beca.exam(year).map { it.id }, asExam, "Examen $year", if (asExam) limitMin else 0)
+    fun becaFicha(g: String) = becaStart(Beca.ofFicha(g).map { it.id }, false, "Ficha " + g)
     fun becaMistakes() = becaStart(becaStats.value.rec.filter { !it.value.last && Beca.byId(it.key) != null }.keys.toList(), false, "Repaso de errores")
 
     private fun record(id: String, ok: Boolean) {
@@ -148,13 +149,30 @@ class MainViewModel : ViewModel() {
     /** Elegir una alternativa: en práctica se corrige al instante; en el simulacro se puede cambiar hasta terminar. */
     fun becaAnswer(i: Int) {
         val r = becaRun.value ?: return
-        val id = r.ids[r.cur]
-        if (r.finished) return
+        val id = r.ids.getOrNull(r.cur) ?: return
+        val p = Beca.byId(id) ?: return
+        if (r.finished || i !in p.opts.indices) return
         if (r.sim) becaRun.value = r.copy(answers = r.answers + (id to i))
         else if (id !in r.answers) {
             becaRun.value = r.copy(answers = r.answers + (id to i))
-            record(id, Beca.byId(id)?.correct == i)
+            record(id, p.isRight(i))
         }
+    }
+
+    /** Pregunta sin alternativas: mostrar la solución sin calificar todavía. */
+    fun becaReveal() {
+        val r = becaRun.value ?: return
+        val id = r.ids.getOrNull(r.cur) ?: return
+        if (id !in r.answers) becaRun.value = r.copy(answers = r.answers + (id to -1))
+    }
+
+    /** Pregunta sin alternativas: el estudiante dice si la resolvió bien (1) o no (2). Se guarda una sola vez. */
+    fun becaSelf(ok: Boolean) {
+        val r = becaRun.value ?: return
+        val id = r.ids.getOrNull(r.cur) ?: return
+        if (r.answers[id] != -1) return
+        becaRun.value = r.copy(answers = r.answers + (id to if (ok) 1 else 2))
+        record(id, ok)
     }
 
     fun becaGo(i: Int) { becaRun.value?.let { r -> if (i in r.ids.indices) becaRun.value = r.copy(cur = i, results = false) } }
@@ -164,8 +182,8 @@ class MainViewModel : ViewModel() {
         if (r.finished) { becaRun.value = r.copy(results = true); return }
         val secs = ((System.currentTimeMillis() - r.startMs) / 1000).toInt()
         if (r.sim) {
-            for ((id, a) in r.answers) record(id, Beca.byId(id)?.correct == a)
-            val score = r.ids.count { r.answers[it] == Beca.byId(it)?.correct }
+            for ((id, a) in r.answers) record(id, Beca.byId(id)?.isRight(a) == true)
+            val score = r.ids.count { Beca.byId(it)?.isRight(r.answers[it]) == true }
             val b = becaStats.value
             val nb = b.copy(sims = b.sims + SimRec(System.currentTimeMillis(), score, r.ids.size, secs))
             becaStats.value = nb; store.saveBeca(nb)

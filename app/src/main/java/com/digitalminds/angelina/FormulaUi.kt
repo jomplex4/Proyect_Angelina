@@ -48,7 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private fun figColor(i: Int): Color = when (i) {
-    1 -> Brand.accentHi; 2 -> Brand.blue; 3 -> Brand.violet; 4 -> Brand.orange; 5 -> Brand.textDim; else -> Brand.text
+    1 -> Brand.accentHi; 2 -> Brand.blue; 3 -> Brand.violet; 4 -> Brand.orange; 5 -> Brand.textDim
+    6 -> Brand.surface; 7 -> Color(0xFF3A3C44); else -> Brand.text
 }
 
 /** Dibuja una figura del formulario (caja de 100 × 60 escalada al ancho disponible). */
@@ -57,7 +58,7 @@ fun FigureView(id: String, modifier: Modifier = Modifier) {
     val prims = remember(id) { Figs.get(id) } ?: return
     val tm = rememberTextMeasurer(cacheSize = 64)
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val h = maxWidth * 0.6f
+        val h = maxWidth * ((BecaFigs.height[id] ?: 60f) / 100f)
         Canvas(Modifier.fillMaxWidth().height(h).clipToBounds()) {
             val s = size.width / 100f
             val sw = maxOf(2f, s * 0.38f)
@@ -68,7 +69,7 @@ fun FigureView(id: String, modifier: Modifier = Modifier) {
                     val path = Path()
                     for (k in p.p.indices step 2) if (k == 0) path.moveTo(p.p[0] * s, p.p[1] * s) else path.lineTo(p.p[k] * s, p.p[k + 1] * s)
                     path.close()
-                    if (p.fill) drawPath(path, figColor(p.c).copy(alpha = 0.85f))
+                    if (p.fill) drawPath(path, figColor(p.c).copy(alpha = if (p.c >= 6) 1f else 0.85f))
                     else drawPath(path, figColor(p.c), style = Stroke(sw, pathEffect = if (p.dash) dash else null))
                 }
                 is Ci -> drawCircle(figColor(p.c), p.r * s, Offset(p.x * s, p.y * s), style = Stroke(sw, pathEffect = if (p.dash) dash else null))
@@ -81,7 +82,7 @@ fun FigureView(id: String, modifier: Modifier = Modifier) {
                 }
                 is Ar -> {
                     val tl = Offset((p.x - p.r) * s, (p.y - p.r) * s); val sz = Size(2 * p.r * s, 2 * p.r * s)
-                    if (p.wedge) drawArc(figColor(p.c).copy(alpha = 0.85f), p.a0, p.sw, true, tl, sz, style = Fill)
+                    if (p.wedge) drawArc(figColor(p.c).copy(alpha = if (p.c >= 6) 1f else 0.85f), p.a0, p.sw, true, tl, sz, style = Fill)
                     else drawArc(figColor(p.c), p.a0, p.sw, false, tl, sz, style = Stroke(sw))
                 }
                 is Tx -> {
